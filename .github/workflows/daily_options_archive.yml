@@ -67,10 +67,21 @@ jobs:
 
       - name: Run archiver (process ALL existing PDFs)
         run: |
-          TICKER="${{ github.event.inputs.ticker }}"
-          CLEANUP="${{ github.event.inputs.cleanup }}"
-          CLEANUP_DAYS="${{ github.event.inputs.cleanup_days }}"
+          # Handle empty inputs properly (GitHub may pass "" literally)
+          RAW_TICKER='${{ github.event.inputs.ticker }}'
+          TICKER=$(echo "$RAW_TICKER" | sed 's/^"//;s/"$//')
 
+          RAW_CLEANUP='${{ github.event.inputs.cleanup }}'
+          CLEANUP=$(echo "$RAW_CLEANUP" | sed 's/^"//;s/"$//')
+
+          RAW_CLEANUP_DAYS='${{ github.event.inputs.cleanup_days }}'
+          CLEANUP_DAYS=$(echo "$RAW_CLEANUP_DAYS" | sed 's/^"//;s/"$//')
+
+          echo "Ticker: [$TICKER]"
+          echo "Cleanup: [$CLEANUP]"
+          echo "Cleanup days: [$CLEANUP_DAYS]"
+
+          export PYTHONUNBUFFERED=1
           if [ -n "$TICKER" ]; then
             if [ "$CLEANUP" = "true" ]; then
               python options_csv_archiver_single.py \
