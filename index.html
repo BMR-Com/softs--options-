@@ -132,6 +132,7 @@ tr.atm .sk{background:rgba(240,180,41,.22)!important;color:var(--atm)!important}
 @media(max-width:950px){.cgrid{grid-template-columns:repeat(2,1fr)}}
 @media(max-width:600px){.cgrid{grid-template-columns:1fr}}
 </style>
+<base target="_blank">
 </head>
 <body>
 
@@ -1373,7 +1374,10 @@ async function fetchCSVFromGitHub() {
   setSB('Connecting to GitHub CSV...');
 
   const comm = getComm();
-  const csvUrl = `https://raw.githubusercontent.com/${comm.githubRepo}/main/data/csv/${activeCommodity}_MASTER.csv`;
+  // Support both public raw URLs and GitHub Pages relative paths
+  const csvUrl = window.location.hostname.includes('github.io') 
+    ? `./data/csv/${activeCommodity}_MASTER.csv`  // GitHub Pages relative
+    : `https://raw.githubusercontent.com/${comm.githubRepo}/main/data/csv/${activeCommodity}_MASTER.csv`;
 
   try {
     const res = await fetch(csvUrl, {cache: 'no-store'});
@@ -1394,8 +1398,11 @@ async function fetchCSVFromGitHub() {
 
   } catch(e) {
     hideOv();
-    setSB(`CSV load failed: ${e.message}. Falling back to manual upload.`);
-    console.error(e);
+    const errMsg = `CSV load failed: ${e.message}. Ensure repo is public or use GitHub Pages. Check console for details.`;
+    setSB(errMsg);
+    document.getElementById('mwrap').innerHTML = `<div class="empty">${errMsg}<br><br>If using private repo, enable GitHub Pages (Settings → Pages → main branch)<br>Or upload PDFs manually using ↑ upload button</div>`;
+    console.error('CSV fetch error:', e);
+    console.error('Attempted URL:', csvUrl);
   }
 }
 
