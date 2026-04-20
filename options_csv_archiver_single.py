@@ -455,20 +455,31 @@ def process_single_day(options_pdf: str, futures_pdf: str, master_path: str, tic
 
     return append_to_master_csv(options_data, fut_prices, opt_date, ticker, master_path)
 
+
+def is_valid_pdf(filepath: str) -> bool:
+    """Check if file is a valid PDF by reading header."""
+    try:
+        with open(filepath, 'rb') as f:
+            header = f.read(5)
+            return header == b'%PDF-'
+    except Exception:
+        return False
+
 def process_directory(pdf_dir: str, output_dir: str, ticker: Optional[str] = None):
     pdf_dir = Path(pdf_dir)
     output_dir = Path(output_dir)
     output_dir.mkdir(parents=True, exist_ok=True)
 
-    # If ticker specified, process only that commodity
-    # If not specified, process ALL commodities (CT, KC, SB) - don't rely on auto-detect
-    if ticker:
-        tickers_to_process = [ticker]
+    # Handle empty string as None
+    if ticker and str(ticker).strip():
+        tickers_to_process = [str(ticker).strip().upper()]
     else:
-        # Always try all 3 commodities - some may have no PDFs today
+        # Always process all 3 commodities
         tickers_to_process = ['CT', 'KC', 'SB']
 
-    all_pdfs = [f for f in pdf_dir.glob("*.pdf") if not f.name.endswith('-2.pdf')]
+    logger.info(f"Will process commodities: {tickers_to_process}")
+
+    all_pdfs = [f for f in pdf_dir.glob("*.pdf") if not f.name.endswith('-2.pdf') and is_valid_pdf(str(f))]
     logger.info(f"Found {len(all_pdfs)} total options PDFs in {pdf_dir}")
 
     for current_ticker in tickers_to_process:
