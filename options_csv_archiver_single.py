@@ -488,9 +488,13 @@ def process_directory(pdf_dir: str, output_dir: str, ticker: Optional[str] = Non
             if not fut_pdf.exists():
                 logger.warning(f"No futures PDF for {opt_pdf.name}, skipping")
                 continue
-            if process_single_day(str(opt_pdf), str(fut_pdf), master_path, current_ticker):
-                processed += 1
-            else:
+            try:
+                if process_single_day(str(opt_pdf), str(fut_pdf), master_path, current_ticker):
+                    processed += 1
+                else:
+                    failed += 1
+            except Exception as e:
+                logger.error(f"Failed to process {opt_pdf.name}: {e}")
                 failed += 1
 
         logger.info(f"Complete for {current_ticker}: {processed} days appended to {master_path}, {failed} failed")
