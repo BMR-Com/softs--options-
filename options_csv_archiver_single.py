@@ -469,33 +469,33 @@ def process_directory(pdf_dir: str, output_dir: str, ticker: Optional[str] = Non
         tickers_to_process = ['CT', 'KC', 'SB']
 
     all_pdfs = [f for f in pdf_dir.glob("*.pdf") if not f.name.endswith('-2.pdf')]
+    logger.info(f"Found {len(all_pdfs)} total options PDFs in {pdf_dir}")
 
     for current_ticker in tickers_to_process:
         master_path = str(output_dir / f"{current_ticker}_MASTER.csv")
-        ticker_pdfs = [f for f in opt_pdfs if detect_commodity_from_filename(str(f)) == current_ticker]
-    logger.info(f"Found {len(opt_pdfs)} options PDFs")
+        ticker_pdfs = [f for f in all_pdfs if detect_commodity_from_filename(str(f)) == current_ticker]
 
-    processed = failed = 0
-    processed = failed = 0
-    ticker_pdfs = [f for f in all_pdfs if detect_commodity_from_filename(str(f)) == current_ticker]
+        logger.info(f"{current_ticker}: {len(ticker_pdfs)} PDFs found")
 
-    if not ticker_pdfs:
-        logger.warning(f"No PDFs found for {current_ticker} in {pdf_dir}")
-
-    for opt_pdf in ticker_pdfs:
-        date_part = opt_pdf.stem.replace(f"{current_ticker}_", "")
-        fut_pdf = pdf_dir / f"{current_ticker}_{date_part}-2.pdf"
-        if not fut_pdf.exists():
-            logger.warning(f"No futures PDF for {opt_pdf.name}, skipping")
+        if not ticker_pdfs:
+            logger.warning(f"No PDFs found for {current_ticker} in {pdf_dir}")
             continue
-        if process_single_day(str(opt_pdf), str(fut_pdf), master_path, current_ticker):
-            processed += 1
-        else:
-            failed += 1
 
-    logger.info(f"Complete for {current_ticker}: {processed} days appended to {master_path}, {failed} failed")
-    if os.path.exists(master_path):
-        show_stats(master_path)
+        processed = failed = 0
+        for opt_pdf in ticker_pdfs:
+            date_part = opt_pdf.stem.replace(f"{current_ticker}_", "")
+            fut_pdf = pdf_dir / f"{current_ticker}_{date_part}-2.pdf"
+            if not fut_pdf.exists():
+                logger.warning(f"No futures PDF for {opt_pdf.name}, skipping")
+                continue
+            if process_single_day(str(opt_pdf), str(fut_pdf), master_path, current_ticker):
+                processed += 1
+            else:
+                failed += 1
+
+        logger.info(f"Complete for {current_ticker}: {processed} days appended to {master_path}, {failed} failed")
+        if os.path.exists(master_path):
+            show_stats(master_path)
 
 # ═══════════════════════════════════════════════════════════════════════════════
 # CLI
