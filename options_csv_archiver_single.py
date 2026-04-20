@@ -461,20 +461,14 @@ def process_directory(pdf_dir: str, output_dir: str, ticker: Optional[str] = Non
     output_dir.mkdir(parents=True, exist_ok=True)
 
     # If ticker specified, process only that commodity
-    # If not specified, auto-detect and process all commodities found
+    # If not specified, process ALL commodities (CT, KC, SB) - don't rely on auto-detect
     if ticker:
         tickers_to_process = [ticker]
-        opt_pdfs = sorted([f for f in pdf_dir.glob(f"{ticker}_*.pdf") if not f.name.endswith('-2.pdf')])
     else:
-        # Auto-detect all commodities in directory
-        all_pdfs = [f for f in pdf_dir.glob("*.pdf") if not f.name.endswith('-2.pdf')]
-        detected = set()
-        for pdf in all_pdfs:
-            t = detect_commodity_from_filename(str(pdf))
-            if t: detected.add(t)
-        tickers_to_process = sorted(detected)
-        opt_pdfs = sorted(all_pdfs)
-        logger.info(f"Auto-detected commodities: {tickers_to_process}")
+        # Always try all 3 commodities - some may have no PDFs today
+        tickers_to_process = ['CT', 'KC', 'SB']
+
+    all_pdfs = [f for f in pdf_dir.glob("*.pdf") if not f.name.endswith('-2.pdf')]
 
     for current_ticker in tickers_to_process:
         master_path = str(output_dir / f"{current_ticker}_MASTER.csv")
@@ -483,6 +477,11 @@ def process_directory(pdf_dir: str, output_dir: str, ticker: Optional[str] = Non
 
     processed = failed = 0
     processed = failed = 0
+    ticker_pdfs = [f for f in all_pdfs if detect_commodity_from_filename(str(f)) == current_ticker]
+
+    if not ticker_pdfs:
+        logger.warning(f"No PDFs found for {current_ticker} in {pdf_dir}")
+
     for opt_pdf in ticker_pdfs:
         date_part = opt_pdf.stem.replace(f"{current_ticker}_", "")
         fut_pdf = pdf_dir / f"{current_ticker}_{date_part}-2.pdf"
