@@ -40,7 +40,11 @@ jobs:
           python-version: '3.11'
 
       - name: Install dependencies
-        run: pip install pdfplumber pandas numpy
+        run: |
+          pip install --upgrade pip setuptools wheel
+          for i in 1 2 3; do
+            pip install pdfplumber pandas numpy && break || { echo "Retry $i..."; sleep 10; }
+          done
 
       - name: Download today's PDFs
         run: |
