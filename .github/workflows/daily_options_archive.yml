@@ -1,0 +1,110 @@
+name: Daily Options CSV Archive
+
+on:
+  schedule:
+    # Run at 4:00 PM EST (after market close)
+    - cron: '0 21 * * 1-5'  # 21:00 UTC = 4:00 PM EST/EDT
+  workflow_dispatch:
+    inputs:
+      ticker:
+        description: 'Commodity ticker (CT/KC/SB, blank = auto-detect all)'
+        required: false
+        default: ''
+      date:
+        description: 'Date to process (YYYY-MM-DD, leave blank for today)'
+        required: false
+      cleanup:
+        description: 'Remove PDFs older than 7 days'
+        required: true
+        default: 'true'
+      cleanup_days:
+        description: 'Days to keep PDFs before cleanup'
+        required: true
+        default: '7'
+
+env:
+  PDF_DIR: ./data/pdfs
+  CSV_DIR: ./data/csv
+
+jobs:
+  archive:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Install dependencies
+        run: pip install pdfplumber pandas numpy
+
+      - name: Download today's PDFs
+        run: |
+          mkdir -p ${{ env.PDF_DIR }}
+          TICKER=${{ github.event.inputs.ticker || '' }}
+          DATE=${{ github.event.inputs.date || $(date +%Y-%m-%d) }}
+          DATE_FMT=$(echo $DATE | tr '-' '_')
+
+          # Download all commodity PDFs for the date
+          for T in CT KC SB; do
+            curl -L "https://github.com/${{ github.repository }}/raw/main/data/pdfs/${T}_${DATE_FMT}.pdf"               -o "${{ env.PDF_DIR }}/${T}_${DATE_FMT}.pdf" || true
+            curl -L "https://github.com/${{ github.repository }}/raw/main/data/pdfs/${T}_${DATE_FMT}-2.pdf"               -o "${{ env.PDF_DIR }}/${T}_${DATE_FMT}-2.pdf" || true
+          done
+
+          # List what we got
+          ls -la ${{ env.PDF_DIR }}/
+
+      - name: Run archiver (auto-detect commodities)
+        run: |
+          TICKER=${{ github.event.inputs.ticker || '' }}
+          CLEANUP=${{ github.event.inputs.cleanup || 'true' }}
+          CLEANUP_DAYS=${{ github.event.inputs.cleanup_days || '7' }}
+
+          if [ -n "$TICKER" ]; then
+            # Process specific commodity
+            if [ "$CLEANUP" = "true" ]; then
+              python options_csv_archiver_single.py \
+                --pdf-dir ${{ env.PDF_DIR }} \
+                --output-dir ${{ env.CSV_DIR }} \
+                --ticker $TICKER \
+                --cleanup \
+                --cleanup-days $CLEANUP_DAYS
+            else
+              python options_csv_archiver_single.py \
+                --pdf-dir ${{ env.PDF_DIR }} \
+                --output-dir ${{ env.CSV_DIR }} \
+                --ticker $TICKER
+            fi
+          else
+            # Auto-detect and process all commodities found
+            if [ "$CLEANUP" = "true" ]; then
+              python options_csv_archiver_single.py \
+                --pdf-dir ${{ env.PDF_DIR }} \
+                --output-dir ${{ env.CSV_DIR }} \
+                --cleanup \
+                --cleanup-days $CLEANUP_DAYS
+            else
+              python options_csv_archiver_single.py \
+                --pdf-dir ${{ env.PDF_DIR }} \
+                --output-dir ${{ env.CSV_DIR }}
+            fi
+          fi
+
+      - name: Commit and push CSV archive
+        run: |
+          git config --local user.email "action@github.com"
+          git config --local user.name "GitHub Action"
+
+          # Add all master CSVs
+          git add ${{ env.CSV_DIR }}/*_MASTER.csv
+
+          # Only commit if there are changes
+          if git diff --cached --quiet; then
+            echo "No changes to commit"
+          else
+            git commit -m "Update options master CSVs: $(date +%Y-%m-%d)"
+            git push
+          fi
