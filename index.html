@@ -4,8 +4,584 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Cotton No.2 · Options Analytics</title>
-<script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
-<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js">
+
+// ═══════════════════ OI CHANGES TAB ═══════════════════
+let oicData = {};
+
+function renderOIChanges(){
+  if(!latestDate){document.getElementById('oic-wrap').innerHTML='<div class="empty">Load CSV data to see OI changes.</div>';return;}
+
+  const dd = days[latestDate];
+  const exps = getActiveExp(dd);
+  const sel = document.getElementById('oic-exp');
+  const prev = sel.value;
+  sel.innerHTML = exps.map(e=>`<option value="${e}">${EXP_LBL[e]||e}</option>`).join('');
+  if(prev && exps.includes(prev)) sel.value = prev;
+  const exp = sel.value; if(!exp) return;
+
+  const minOI = parseInt(document.getElementById('oic-min').value) || 1000;
+  const F = getFutPrice(exp, latestDate) || futPrices[exp] || 70;
+
+  // Get all dates sorted
+  const sortedDates = Object.keys(days).sort();
+  const todayIdx = sortedDates.indexOf(latestDate);
+  const prevDate = sortedDates[todayIdx-1] || null;
+  const day5Date = sortedDates[Math.max(0, todayIdx-5)] || null;
+  const monthStart = latestDate.substring(0, 8) + '01';
+  const mtdDates = sortedDates.filter(d => d >= monthStart && d <= latestDate);
+
+  // Get strikes with OI or Vol >= threshold
+  const calls = dd.calls?.[exp] || {};
+  const puts = dd.puts?.[exp] || {};
+  const allStrikes = new Set([...Object.keys(calls), ...Object.keys(puts)].map(Number));
+  const validStrikes = [...allStrikes].filter(s => {
+    const c = calls[s] || {}, p = puts[s] || {};
+    return (c.oi || 0) + (p.oi || 0) >= minOI || (c.vol || 0) + (p.vol || 0) >= minOI;
+  }).sort((a,b) => b-a);
+
+  if(!validStrikes.length){document.getElementById('oic-wrap').innerHTML='<div class="empty">No strikes meet the threshold.</div>';return;}
+
+  // Build table
+  let h = '<table><thead><tr>';
+  h += '<th class="sk">Strike</th>';
+  // Call columns
+  h += '<th style="color:var(--call)">OI</th><th style="color:var(--call)">Vol</th><th style="color:var(--call)">OI Δ1D</th><th style="color:var(--call)">Vol 5D</th><th style="color:var(--call)">OI Δ5D</th><th style="color:var(--call)">Vol MTD</th><th style="color:var(--call)">OI ΔMTD</th><th style="color:var(--call)">IV%</th><th style="color:var(--call)">IV Δ1D</th><th style="color:var(--call)">IV Δ5D</th><th style="color:var(--call)">IV ΔMTD</th>';
+  h += '<th class="sk" style="min-width:8px"></th>';
+  // Put columns
+  h += '<th style="color:var(--put)">OI</th><th style="color:var(--put)">Vol</th><th style="color:var(--put)">OI Δ1D</th><th style="color:var(--put)">Vol 5D</th><th style="color:var(--put)">OI Δ5D</th><th style="color:var(--put)">Vol MTD</th><th style="color:var(--put)">OI ΔMTD</th><th style="color:var(--put)">IV%</th><th style="color:var(--put)">IV Δ1D</th><th style="color:var(--put)">IV Δ5D</th><th style="color:var(--put)">IV ΔMTD</th>';
+  h += '</tr></thead><tbody>';
+
+  validStrikes.forEach(K => {
+    const isATM = Math.abs(K-F) < 0.5;
+    h += `<tr${isATM?' class="atm"':''}><td class="sk">${K}${isATM?'<span class="atm-tag">ATM</span>':''}</td>`;
+
+    ['calls','puts'].forEach(side => {
+      const rec = dd[side]?.[exp]?.[K] || {};
+      const oi = rec.oi || 0;
+      const vol = rec.vol || 0;
+      const oiChg = rec.oiChange || 0;
+
+      // 5-day accum
+      let vol5d = 0, oi5dStart = 0;
+      if(day5Date && days[day5Date]){
+        const d5 = days[day5Date][side]?.[exp]?.[K];
+        oi5dStart = d5?.oi || 0;
+        for(let i = Math.max(0, todayIdx-5); i <= todayIdx; i++){
+          const d = days[sortedDates[i]];
+          if(d) vol5d += d[side]?.[exp]?.[K]?.vol || 0;
+        }
+      }
+      const oiChg5d = oi - oi5dStart;
+
+      // MTD accum
+      let volMTD = 0, oiMTDStart = 0;
+      if(mtdDates.length > 0){
+        const dMTD = days[mtdDates[0]];
+        if(dMTD) oiMTDStart = dMTD[side]?.[exp]?.[K]?.oi || 0;
+        mtdDates.forEach(d => {
+          const day = days[d];
+          if(day) volMTD += day[side]?.[exp]?.[K]?.vol || 0;
+        });
+      }
+      const oiChgMTD = oi - oiMTDStart;
+
+      // IV
+      const iv = avgIV(exp, K, dd, latestDate);
+      const iv1d = prevDate ? (iv - (avgIV(exp, K, days[prevDate], prevDate) || iv)) : null;
+      const iv5d = day5Date ? (iv - (avgIV(exp, K, days[day5Date], day5Date) || iv)) : null;
+      const ivMTD = mtdDates.length > 0 ? (iv - (avgIV(exp, K, days[mtdDates[0]], mtdDates[0]) || iv)) : null;
+
+      const ivStr = iv ? (iv*100).toFixed(1)+'%' : '—';
+      const fmt = v => v !== null && !isNaN(v) ? (v>0?'+':'')+(v*100).toFixed(1) : '—';
+      const cls = v => v !== null && !isNaN(v) ? (v>0?'pos':'neg') : 'zero';
+
+      h += `<td>${oi.toLocaleString()}</td>`;
+      h += `<td>${vol.toLocaleString()}</td>`;
+      h += `<td class="${cls(oiChg)}">${oiChg>0?'+':''}${oiChg.toLocaleString()}</td>`;
+      h += `<td>${vol5d.toLocaleString()}</td>`;
+      h += `<td class="${cls(oiChg5d)}">${oiChg5d>0?'+':''}${oiChg5d.toLocaleString()}</td>`;
+      h += `<td>${volMTD.toLocaleString()}</td>`;
+      h += `<td class="${cls(oiChgMTD)}">${oiChgMTD>0?'+':''}${oiChgMTD.toLocaleString()}</td>`;
+      h += `<td class="iv-${iv?(iv*100>30?'r':iv*100>22?'a':'g'):'zero'}">${ivStr}</td>`;
+      h += `<td class="${cls(iv1d)}">${fmt(iv1d)}</td>`;
+      h += `<td class="${cls(iv5d)}">${fmt(iv5d)}</td>`;
+      h += `<td class="${cls(ivMTD)}">${fmt(ivMTD)}</td>`;
+
+      if(side === 'calls') h += '<td class="sk" style="min-width:8px"></td>';
+    });
+
+    h += '</tr>';
+  });
+  h += '</tbody></table>';
+  document.getElementById('oic-wrap').innerHTML = h;
+  setSB(`OI Changes · ${EXP_LBL[exp]||exp} · ${validStrikes.length} strikes · F=${F.toFixed(2)}`);
+}
+
+// ═══════════════════ PORTFOLIO ANALYSIS TAB ═══════════════════
+let portfolioLegs = [];
+
+function initPortfolio(){
+  if(!latestDate) return;
+  const dd = days[latestDate];
+  const exps = getActiveExp(dd);
+  const expSel = document.getElementById('port-exp');
+  expSel.innerHTML = '<option value="">Select Expiry</option>' + exps.map(e=>`<option value="${e}">${EXP_LBL[e]||e}</option>`).join('');
+  expSel.onchange = () => updatePortfolioStrikes();
+}
+
+function updatePortfolioStrikes(){
+  const exp = document.getElementById('port-exp').value;
+  if(!exp || !latestDate) return;
+  const dd = days[latestDate];
+  const strikes = new Set([...Object.keys(dd.calls?.[exp]||{}), ...Object.keys(dd.puts?.[exp]||{})].map(Number));
+  const sorted = [...strikes].sort((a,b)=>b-a);
+  document.getElementById('port-strike').innerHTML = '<option value="">Select Strike</option>' + sorted.map(s=>`<option value="${s}">${s}</option>`).join('');
+}
+
+function addPortfolioLeg(){
+  const exp = document.getElementById('port-exp').value;
+  const strike = parseFloat(document.getElementById('port-strike').value);
+  const cp = document.getElementById('port-cp').value;
+  const side = document.getElementById('port-side').value;
+  const lots = parseInt(document.getElementById('port-lots').value) || 1;
+  const premium = parseFloat(document.getElementById('port-premium').value) || 0;
+
+  if(!exp || !strike) return;
+
+  portfolioLegs.push({exp, strike, cp, side, lots, premium});
+  renderPortfolioLegs();
+  calcPortfolioGreeks();
+  runStressTest();
+}
+
+function removePortfolioLeg(idx){
+  portfolioLegs.splice(idx, 1);
+  renderPortfolioLegs();
+  calcPortfolioGreeks();
+  runStressTest();
+}
+
+function renderPortfolioLegs(){
+  const el = document.getElementById('port-legs-list');
+  if(!portfolioLegs.length){el.innerHTML='<span style="font-size:9px;color:var(--text3)">No legs added yet.</span>';return;}
+  el.innerHTML = portfolioLegs.map((leg,i)=>`
+    <div style="display:flex;gap:8px;align-items:center;background:var(--bg3);border:0.5px solid var(--border);border-radius:3px;padding:4px 8px;font-size:9px">
+      <span style="color:var(--atm)">${EXP_LBL[leg.exp]||leg.exp}</span>
+      <span style="color:var(--text)">${leg.strike}</span>
+      <span style="color:${leg.cp==='C'?'var(--call)':'var(--put)'}">${leg.cp==='C'?'Call':'Put'}</span>
+      <span style="color:${leg.side==='long'?'var(--pos)':'var(--neg)'}">${leg.side.toUpperCase()}</span>
+      <span>${leg.lots} lots</span>
+      <span>@ ${leg.premium.toFixed(2)}</span>
+      <button onclick="removePortfolioLeg(${i})" style="background:none;border:none;color:var(--neg);cursor:pointer;font-size:13px;margin-left:auto">×</button>
+    </div>
+  `).join('');
+}
+
+function calcPortfolioGreeks(){
+  if(!latestDate || !portfolioLegs.length){
+    document.getElementById('port-delta').textContent='—';
+    document.getElementById('port-gamma').textContent='—';
+    document.getElementById('port-theta').textContent='—';
+    document.getElementById('port-vega').textContent='—';
+    document.getElementById('port-notional').textContent='—';
+    return;
+  }
+
+  const dd = days[latestDate];
+  let totalDelta = 0, totalGamma = 0, totalTheta = 0, totalVega = 0, totalPremium = 0;
+
+  portfolioLegs.forEach(leg => {
+    const F = getFutPrice(leg.exp, latestDate) || futPrices[leg.exp];
+    const T = getT(leg.exp, latestDate);
+    const iv = avgIV(leg.exp, leg.strike, dd, latestDate) || 0.2;
+    const isCall = leg.cp === 'C';
+    const g = b76Greeks(F, leg.strike, T, R, iv, isCall);
+    const mult = leg.side === 'long' ? 1 : -1;
+    const contractSize = getComm().contractSize || 50000;
+
+    // Delta lots = delta * lots * contract_size / 100 (for cents to dollars)
+    totalDelta += g.delta * leg.lots * mult;
+    totalGamma += g.gamma * leg.lots * mult;
+    // Theta in $/day per contract = theta * contract_size / 100
+    totalTheta += g.theta * leg.lots * mult * contractSize / 100;
+    // Vega in $ per 1% IV move = vega * contract_size / 100
+    totalVega += g.vega * leg.lots * mult * contractSize / 100;
+    totalPremium += leg.premium * leg.lots * mult * contractSize / 100;
+  });
+
+  document.getElementById('port-delta').textContent = totalDelta.toFixed(2);
+  document.getElementById('port-gamma').textContent = totalGamma.toFixed(4);
+  document.getElementById('port-theta').textContent = totalTheta.toFixed(2);
+  document.getElementById('port-vega').textContent = totalVega.toFixed(2);
+  document.getElementById('port-notional').textContent = totalPremium.toFixed(2);
+}
+
+function runStressTest(){
+  if(!latestDate || !portfolioLegs.length){
+    document.getElementById('stress-results').innerHTML='<div class="empty" style="padding:20px">Add portfolio legs and set stress parameters.</div>';
+    return;
+  }
+
+  const F = parseFloat(document.getElementById('stress-F').value) || (futPrices[getActiveExp(days[latestDate])[0]] || 70);
+  const daysFwd = parseInt(document.getElementById('stress-days').value) || 0;
+  const ivChg = parseFloat(document.getElementById('stress-ivchg').value) || 0;
+
+  const dd = days[latestDate];
+  let currentValue = 0, stressedValue = 0;
+
+  portfolioLegs.forEach(leg => {
+    const contractSize = getComm().contractSize || 50000;
+    const mult = leg.side === 'long' ? 1 : -1;
+
+    // Current value
+    const ivCurrent = avgIV(leg.exp, leg.strike, dd, latestDate) || 0.2;
+    const Tcurrent = getT(leg.exp, latestDate);
+    const Fcurrent = getFutPrice(leg.exp, latestDate) || futPrices[leg.exp];
+    const priceCurrent = b76Greeks(Fcurrent, leg.strike, Tcurrent, R, ivCurrent, leg.cp==='C').price;
+    currentValue += priceCurrent * leg.lots * mult * contractSize / 100;
+
+    // Stressed value
+    const ivStress = Math.max(0.01, ivCurrent + ivChg/100);
+    const Tstress = Math.max(1/365, Tcurrent - daysFwd/365);
+    const priceStress = b76Greeks(F, leg.strike, Tstress, R, ivStress, leg.cp==='C').price;
+    stressedValue += priceStress * leg.lots * mult * contractSize / 100;
+  });
+
+  const pnl = stressedValue - currentValue;
+  const pnlPct = currentValue !== 0 ? (pnl / Math.abs(currentValue) * 100).toFixed(2) + '%' : '—';
+
+  // Build results table
+  let h = '<table class="rtbl" style="font-size:9px"><thead><tr>';
+  h += '<th>Leg</th><th>Current $</th><th>Stressed $</th><th>P&L $</th><th>P&L %</th>';
+  h += '</tr></thead><tbody>';
+
+  portfolioLegs.forEach((leg, i) => {
+    const contractSize = getComm().contractSize || 50000;
+    const mult = leg.side === 'long' ? 1 : -1;
+
+    const ivCurrent = avgIV(leg.exp, leg.strike, dd, latestDate) || 0.2;
+    const Tcurrent = getT(leg.exp, latestDate);
+    const Fcurrent = getFutPrice(leg.exp, latestDate) || futPrices[leg.exp];
+    const priceCurrent = b76Greeks(Fcurrent, leg.strike, Tcurrent, R, ivCurrent, leg.cp==='C').price;
+    const valCurrent = priceCurrent * leg.lots * mult * contractSize / 100;
+
+    const ivStress = Math.max(0.01, ivCurrent + ivChg/100);
+    const Tstress = Math.max(1/365, Tcurrent - daysFwd/365);
+    const priceStress = b76Greeks(F, leg.strike, Tstress, R, ivStress, leg.cp==='C').price;
+    const valStress = priceStress * leg.lots * mult * contractSize / 100;
+
+    const legPnl = valStress - valCurrent;
+    const legPnlPct = valCurrent !== 0 ? (legPnl / Math.abs(valCurrent) * 100).toFixed(1) + '%' : '—';
+
+    h += `<tr><td>${EXP_LBL[leg.exp]||leg.exp} ${leg.strike}${leg.cp} ${leg.side} ${leg.lots}lot</td>`;
+    h += `<td>${valCurrent.toFixed(2)}</td>`;
+    h += `<td>${valStress.toFixed(2)}</td>`;
+    h += `<td class="${legPnl>=0?'pos':'neg'}">${legPnl>=0?'+':''}${legPnl.toFixed(2)}</td>`;
+    h += `<td class="${legPnl>=0?'pos':'neg'}">${legPnlPct}</td></tr>`;
+  });
+
+  h += `<tr style="border-top:2px solid var(--border);font-weight:700">`;
+  h += `<td>PORTFOLIO TOTAL</td>`;
+  h += `<td>${currentValue.toFixed(2)}</td>`;
+  h += `<td>${stressedValue.toFixed(2)}</td>`;
+  h += `<td class="${pnl>=0?'pos':'neg'}">${pnl>=0?'+':''}${pnl.toFixed(2)}</td>`;
+  h += `<td class="${pnl>=0?'pos':'neg'}">${pnlPct}</td></tr>`;
+  h += '</tbody></table>';
+
+  document.getElementById('stress-results').innerHTML = h;
+}
+
+</script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.js">
+
+// ═══════════════════ OI CHANGES TAB ═══════════════════
+let oicData = {};
+
+function renderOIChanges(){
+  if(!latestDate){document.getElementById('oic-wrap').innerHTML='<div class="empty">Load CSV data to see OI changes.</div>';return;}
+
+  const dd = days[latestDate];
+  const exps = getActiveExp(dd);
+  const sel = document.getElementById('oic-exp');
+  const prev = sel.value;
+  sel.innerHTML = exps.map(e=>`<option value="${e}">${EXP_LBL[e]||e}</option>`).join('');
+  if(prev && exps.includes(prev)) sel.value = prev;
+  const exp = sel.value; if(!exp) return;
+
+  const minOI = parseInt(document.getElementById('oic-min').value) || 1000;
+  const F = getFutPrice(exp, latestDate) || futPrices[exp] || 70;
+
+  // Get all dates sorted
+  const sortedDates = Object.keys(days).sort();
+  const todayIdx = sortedDates.indexOf(latestDate);
+  const prevDate = sortedDates[todayIdx-1] || null;
+  const day5Date = sortedDates[Math.max(0, todayIdx-5)] || null;
+  const monthStart = latestDate.substring(0, 8) + '01';
+  const mtdDates = sortedDates.filter(d => d >= monthStart && d <= latestDate);
+
+  // Get strikes with OI or Vol >= threshold
+  const calls = dd.calls?.[exp] || {};
+  const puts = dd.puts?.[exp] || {};
+  const allStrikes = new Set([...Object.keys(calls), ...Object.keys(puts)].map(Number));
+  const validStrikes = [...allStrikes].filter(s => {
+    const c = calls[s] || {}, p = puts[s] || {};
+    return (c.oi || 0) + (p.oi || 0) >= minOI || (c.vol || 0) + (p.vol || 0) >= minOI;
+  }).sort((a,b) => b-a);
+
+  if(!validStrikes.length){document.getElementById('oic-wrap').innerHTML='<div class="empty">No strikes meet the threshold.</div>';return;}
+
+  // Build table
+  let h = '<table><thead><tr>';
+  h += '<th class="sk">Strike</th>';
+  // Call columns
+  h += '<th style="color:var(--call)">OI</th><th style="color:var(--call)">Vol</th><th style="color:var(--call)">OI Δ1D</th><th style="color:var(--call)">Vol 5D</th><th style="color:var(--call)">OI Δ5D</th><th style="color:var(--call)">Vol MTD</th><th style="color:var(--call)">OI ΔMTD</th><th style="color:var(--call)">IV%</th><th style="color:var(--call)">IV Δ1D</th><th style="color:var(--call)">IV Δ5D</th><th style="color:var(--call)">IV ΔMTD</th>';
+  h += '<th class="sk" style="min-width:8px"></th>';
+  // Put columns
+  h += '<th style="color:var(--put)">OI</th><th style="color:var(--put)">Vol</th><th style="color:var(--put)">OI Δ1D</th><th style="color:var(--put)">Vol 5D</th><th style="color:var(--put)">OI Δ5D</th><th style="color:var(--put)">Vol MTD</th><th style="color:var(--put)">OI ΔMTD</th><th style="color:var(--put)">IV%</th><th style="color:var(--put)">IV Δ1D</th><th style="color:var(--put)">IV Δ5D</th><th style="color:var(--put)">IV ΔMTD</th>';
+  h += '</tr></thead><tbody>';
+
+  validStrikes.forEach(K => {
+    const isATM = Math.abs(K-F) < 0.5;
+    h += `<tr${isATM?' class="atm"':''}><td class="sk">${K}${isATM?'<span class="atm-tag">ATM</span>':''}</td>`;
+
+    ['calls','puts'].forEach(side => {
+      const rec = dd[side]?.[exp]?.[K] || {};
+      const oi = rec.oi || 0;
+      const vol = rec.vol || 0;
+      const oiChg = rec.oiChange || 0;
+
+      // 5-day accum
+      let vol5d = 0, oi5dStart = 0;
+      if(day5Date && days[day5Date]){
+        const d5 = days[day5Date][side]?.[exp]?.[K];
+        oi5dStart = d5?.oi || 0;
+        for(let i = Math.max(0, todayIdx-5); i <= todayIdx; i++){
+          const d = days[sortedDates[i]];
+          if(d) vol5d += d[side]?.[exp]?.[K]?.vol || 0;
+        }
+      }
+      const oiChg5d = oi - oi5dStart;
+
+      // MTD accum
+      let volMTD = 0, oiMTDStart = 0;
+      if(mtdDates.length > 0){
+        const dMTD = days[mtdDates[0]];
+        if(dMTD) oiMTDStart = dMTD[side]?.[exp]?.[K]?.oi || 0;
+        mtdDates.forEach(d => {
+          const day = days[d];
+          if(day) volMTD += day[side]?.[exp]?.[K]?.vol || 0;
+        });
+      }
+      const oiChgMTD = oi - oiMTDStart;
+
+      // IV
+      const iv = avgIV(exp, K, dd, latestDate);
+      const iv1d = prevDate ? (iv - (avgIV(exp, K, days[prevDate], prevDate) || iv)) : null;
+      const iv5d = day5Date ? (iv - (avgIV(exp, K, days[day5Date], day5Date) || iv)) : null;
+      const ivMTD = mtdDates.length > 0 ? (iv - (avgIV(exp, K, days[mtdDates[0]], mtdDates[0]) || iv)) : null;
+
+      const ivStr = iv ? (iv*100).toFixed(1)+'%' : '—';
+      const fmt = v => v !== null && !isNaN(v) ? (v>0?'+':'')+(v*100).toFixed(1) : '—';
+      const cls = v => v !== null && !isNaN(v) ? (v>0?'pos':'neg') : 'zero';
+
+      h += `<td>${oi.toLocaleString()}</td>`;
+      h += `<td>${vol.toLocaleString()}</td>`;
+      h += `<td class="${cls(oiChg)}">${oiChg>0?'+':''}${oiChg.toLocaleString()}</td>`;
+      h += `<td>${vol5d.toLocaleString()}</td>`;
+      h += `<td class="${cls(oiChg5d)}">${oiChg5d>0?'+':''}${oiChg5d.toLocaleString()}</td>`;
+      h += `<td>${volMTD.toLocaleString()}</td>`;
+      h += `<td class="${cls(oiChgMTD)}">${oiChgMTD>0?'+':''}${oiChgMTD.toLocaleString()}</td>`;
+      h += `<td class="iv-${iv?(iv*100>30?'r':iv*100>22?'a':'g'):'zero'}">${ivStr}</td>`;
+      h += `<td class="${cls(iv1d)}">${fmt(iv1d)}</td>`;
+      h += `<td class="${cls(iv5d)}">${fmt(iv5d)}</td>`;
+      h += `<td class="${cls(ivMTD)}">${fmt(ivMTD)}</td>`;
+
+      if(side === 'calls') h += '<td class="sk" style="min-width:8px"></td>';
+    });
+
+    h += '</tr>';
+  });
+  h += '</tbody></table>';
+  document.getElementById('oic-wrap').innerHTML = h;
+  setSB(`OI Changes · ${EXP_LBL[exp]||exp} · ${validStrikes.length} strikes · F=${F.toFixed(2)}`);
+}
+
+// ═══════════════════ PORTFOLIO ANALYSIS TAB ═══════════════════
+let portfolioLegs = [];
+
+function initPortfolio(){
+  if(!latestDate) return;
+  const dd = days[latestDate];
+  const exps = getActiveExp(dd);
+  const expSel = document.getElementById('port-exp');
+  expSel.innerHTML = '<option value="">Select Expiry</option>' + exps.map(e=>`<option value="${e}">${EXP_LBL[e]||e}</option>`).join('');
+  expSel.onchange = () => updatePortfolioStrikes();
+}
+
+function updatePortfolioStrikes(){
+  const exp = document.getElementById('port-exp').value;
+  if(!exp || !latestDate) return;
+  const dd = days[latestDate];
+  const strikes = new Set([...Object.keys(dd.calls?.[exp]||{}), ...Object.keys(dd.puts?.[exp]||{})].map(Number));
+  const sorted = [...strikes].sort((a,b)=>b-a);
+  document.getElementById('port-strike').innerHTML = '<option value="">Select Strike</option>' + sorted.map(s=>`<option value="${s}">${s}</option>`).join('');
+}
+
+function addPortfolioLeg(){
+  const exp = document.getElementById('port-exp').value;
+  const strike = parseFloat(document.getElementById('port-strike').value);
+  const cp = document.getElementById('port-cp').value;
+  const side = document.getElementById('port-side').value;
+  const lots = parseInt(document.getElementById('port-lots').value) || 1;
+  const premium = parseFloat(document.getElementById('port-premium').value) || 0;
+
+  if(!exp || !strike) return;
+
+  portfolioLegs.push({exp, strike, cp, side, lots, premium});
+  renderPortfolioLegs();
+  calcPortfolioGreeks();
+  runStressTest();
+}
+
+function removePortfolioLeg(idx){
+  portfolioLegs.splice(idx, 1);
+  renderPortfolioLegs();
+  calcPortfolioGreeks();
+  runStressTest();
+}
+
+function renderPortfolioLegs(){
+  const el = document.getElementById('port-legs-list');
+  if(!portfolioLegs.length){el.innerHTML='<span style="font-size:9px;color:var(--text3)">No legs added yet.</span>';return;}
+  el.innerHTML = portfolioLegs.map((leg,i)=>`
+    <div style="display:flex;gap:8px;align-items:center;background:var(--bg3);border:0.5px solid var(--border);border-radius:3px;padding:4px 8px;font-size:9px">
+      <span style="color:var(--atm)">${EXP_LBL[leg.exp]||leg.exp}</span>
+      <span style="color:var(--text)">${leg.strike}</span>
+      <span style="color:${leg.cp==='C'?'var(--call)':'var(--put)'}">${leg.cp==='C'?'Call':'Put'}</span>
+      <span style="color:${leg.side==='long'?'var(--pos)':'var(--neg)'}">${leg.side.toUpperCase()}</span>
+      <span>${leg.lots} lots</span>
+      <span>@ ${leg.premium.toFixed(2)}</span>
+      <button onclick="removePortfolioLeg(${i})" style="background:none;border:none;color:var(--neg);cursor:pointer;font-size:13px;margin-left:auto">×</button>
+    </div>
+  `).join('');
+}
+
+function calcPortfolioGreeks(){
+  if(!latestDate || !portfolioLegs.length){
+    document.getElementById('port-delta').textContent='—';
+    document.getElementById('port-gamma').textContent='—';
+    document.getElementById('port-theta').textContent='—';
+    document.getElementById('port-vega').textContent='—';
+    document.getElementById('port-notional').textContent='—';
+    return;
+  }
+
+  const dd = days[latestDate];
+  let totalDelta = 0, totalGamma = 0, totalTheta = 0, totalVega = 0, totalPremium = 0;
+
+  portfolioLegs.forEach(leg => {
+    const F = getFutPrice(leg.exp, latestDate) || futPrices[leg.exp];
+    const T = getT(leg.exp, latestDate);
+    const iv = avgIV(leg.exp, leg.strike, dd, latestDate) || 0.2;
+    const isCall = leg.cp === 'C';
+    const g = b76Greeks(F, leg.strike, T, R, iv, isCall);
+    const mult = leg.side === 'long' ? 1 : -1;
+    const contractSize = getComm().contractSize || 50000;
+
+    // Delta lots = delta * lots * contract_size / 100 (for cents to dollars)
+    totalDelta += g.delta * leg.lots * mult;
+    totalGamma += g.gamma * leg.lots * mult;
+    // Theta in $/day per contract = theta * contract_size / 100
+    totalTheta += g.theta * leg.lots * mult * contractSize / 100;
+    // Vega in $ per 1% IV move = vega * contract_size / 100
+    totalVega += g.vega * leg.lots * mult * contractSize / 100;
+    totalPremium += leg.premium * leg.lots * mult * contractSize / 100;
+  });
+
+  document.getElementById('port-delta').textContent = totalDelta.toFixed(2);
+  document.getElementById('port-gamma').textContent = totalGamma.toFixed(4);
+  document.getElementById('port-theta').textContent = totalTheta.toFixed(2);
+  document.getElementById('port-vega').textContent = totalVega.toFixed(2);
+  document.getElementById('port-notional').textContent = totalPremium.toFixed(2);
+}
+
+function runStressTest(){
+  if(!latestDate || !portfolioLegs.length){
+    document.getElementById('stress-results').innerHTML='<div class="empty" style="padding:20px">Add portfolio legs and set stress parameters.</div>';
+    return;
+  }
+
+  const F = parseFloat(document.getElementById('stress-F').value) || (futPrices[getActiveExp(days[latestDate])[0]] || 70);
+  const daysFwd = parseInt(document.getElementById('stress-days').value) || 0;
+  const ivChg = parseFloat(document.getElementById('stress-ivchg').value) || 0;
+
+  const dd = days[latestDate];
+  let currentValue = 0, stressedValue = 0;
+
+  portfolioLegs.forEach(leg => {
+    const contractSize = getComm().contractSize || 50000;
+    const mult = leg.side === 'long' ? 1 : -1;
+
+    // Current value
+    const ivCurrent = avgIV(leg.exp, leg.strike, dd, latestDate) || 0.2;
+    const Tcurrent = getT(leg.exp, latestDate);
+    const Fcurrent = getFutPrice(leg.exp, latestDate) || futPrices[leg.exp];
+    const priceCurrent = b76Greeks(Fcurrent, leg.strike, Tcurrent, R, ivCurrent, leg.cp==='C').price;
+    currentValue += priceCurrent * leg.lots * mult * contractSize / 100;
+
+    // Stressed value
+    const ivStress = Math.max(0.01, ivCurrent + ivChg/100);
+    const Tstress = Math.max(1/365, Tcurrent - daysFwd/365);
+    const priceStress = b76Greeks(F, leg.strike, Tstress, R, ivStress, leg.cp==='C').price;
+    stressedValue += priceStress * leg.lots * mult * contractSize / 100;
+  });
+
+  const pnl = stressedValue - currentValue;
+  const pnlPct = currentValue !== 0 ? (pnl / Math.abs(currentValue) * 100).toFixed(2) + '%' : '—';
+
+  // Build results table
+  let h = '<table class="rtbl" style="font-size:9px"><thead><tr>';
+  h += '<th>Leg</th><th>Current $</th><th>Stressed $</th><th>P&L $</th><th>P&L %</th>';
+  h += '</tr></thead><tbody>';
+
+  portfolioLegs.forEach((leg, i) => {
+    const contractSize = getComm().contractSize || 50000;
+    const mult = leg.side === 'long' ? 1 : -1;
+
+    const ivCurrent = avgIV(leg.exp, leg.strike, dd, latestDate) || 0.2;
+    const Tcurrent = getT(leg.exp, latestDate);
+    const Fcurrent = getFutPrice(leg.exp, latestDate) || futPrices[leg.exp];
+    const priceCurrent = b76Greeks(Fcurrent, leg.strike, Tcurrent, R, ivCurrent, leg.cp==='C').price;
+    const valCurrent = priceCurrent * leg.lots * mult * contractSize / 100;
+
+    const ivStress = Math.max(0.01, ivCurrent + ivChg/100);
+    const Tstress = Math.max(1/365, Tcurrent - daysFwd/365);
+    const priceStress = b76Greeks(F, leg.strike, Tstress, R, ivStress, leg.cp==='C').price;
+    const valStress = priceStress * leg.lots * mult * contractSize / 100;
+
+    const legPnl = valStress - valCurrent;
+    const legPnlPct = valCurrent !== 0 ? (legPnl / Math.abs(valCurrent) * 100).toFixed(1) + '%' : '—';
+
+    h += `<tr><td>${EXP_LBL[leg.exp]||leg.exp} ${leg.strike}${leg.cp} ${leg.side} ${leg.lots}lot</td>`;
+    h += `<td>${valCurrent.toFixed(2)}</td>`;
+    h += `<td>${valStress.toFixed(2)}</td>`;
+    h += `<td class="${legPnl>=0?'pos':'neg'}">${legPnl>=0?'+':''}${legPnl.toFixed(2)}</td>`;
+    h += `<td class="${legPnl>=0?'pos':'neg'}">${legPnlPct}</td></tr>`;
+  });
+
+  h += `<tr style="border-top:2px solid var(--border);font-weight:700">`;
+  h += `<td>PORTFOLIO TOTAL</td>`;
+  h += `<td>${currentValue.toFixed(2)}</td>`;
+  h += `<td>${stressedValue.toFixed(2)}</td>`;
+  h += `<td class="${pnl>=0?'pos':'neg'}">${pnl>=0?'+':''}${pnl.toFixed(2)}</td>`;
+  h += `<td class="${pnl>=0?'pos':'neg'}">${pnlPct}</td></tr>`;
+  h += '</tbody></table>';
+
+  document.getElementById('stress-results').innerHTML = h;
+}
+
+</script>
 <style>
 *{box-sizing:border-box;margin:0;padding:0}
 :root{
@@ -207,6 +783,8 @@ tr.atm .sk{background:rgba(240,180,41,.22)!important;color:var(--atm)!important}
   <div class="nav-tab" onclick="showSec('strategy',this)">⟁ Strategy Builder</div>
   <div class="nav-tab" onclick="showSec('volsmile',this)">〜 Vol Smile</div>
   <div class="nav-tab" onclick="showSec('sentiment',this)">◈ Sentiment</div>
+<div class="nav-tab" onclick="showSec('oichanges',this)">◉ OI Changes</div>
+<div class="nav-tab" onclick="showSec('portfolio',this)">◆ Portfolio</div>
 </div>
 
 <!-- MATRIX SECTION -->
@@ -490,6 +1068,86 @@ tr.atm .sk{background:rgba(240,180,41,.22)!important;color:var(--atm)!important}
     <div class="ccard">
       <div class="ctitle">Weekly Activity Summary</div>
       <div id="sent-narrative" style="font-size:10px;line-height:1.9;color:var(--text2)"></div>
+    </div>
+  </div>
+</div>
+
+
+
+<!-- OI CHANGES SECTION -->
+<div class="sec" id="sec-oichanges">
+  <div style="padding:10px 14px">
+    <div style="display:flex;gap:10px;align-items:center;margin-bottom:10px;flex-wrap:wrap">
+      <span class="fp-lbl">Expiry:</span>
+      <select id="oic-exp" onchange="renderOIChanges()" style="background:var(--bg2);border:0.5px solid var(--border2);border-radius:4px;color:var(--atm);font-family:'Courier New',monospace;font-size:10px;font-weight:700;padding:3px 7px"></select>
+      <span class="fp-lbl">Min OI/Volume:</span>
+      <input id="oic-min" type="number" value="1000" min="100" step="100" style="background:var(--bg2);border:0.5px solid var(--border2);border-radius:4px;color:var(--text);font-family:'Courier New',monospace;font-size:10px;padding:3px 7px;width:70px;text-align:right" onchange="renderOIChanges()">
+      <span style="font-size:8px;color:var(--text3)">Strikes with OI or Volume ≥ threshold</span>
+    </div>
+    <div class="mwrap" id="oic-wrap" style="max-height:72vh">
+      <div class="empty">Load CSV data to see OI changes.</div>
+    </div>
+  </div>
+</div>
+
+<!-- PORTFOLIO ANALYSIS SECTION -->
+<div class="sec" id="sec-portfolio">
+  <div style="padding:10px 14px">
+    <!-- Portfolio Entry Panel -->
+    <div style="background:var(--bg2);border:0.5px solid var(--border);border-radius:6px;padding:10px;margin-bottom:10px">
+      <div class="scard-title">Portfolio Entry</div>
+      <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin-bottom:8px">
+        <select id="port-exp" style="background:var(--bg3);border:0.5px solid var(--border2);border-radius:3px;color:var(--atm);font-family:'Courier New',monospace;font-size:9px;padding:2px 5px">
+          <option value="">Select Expiry</option>
+        </select>
+        <select id="port-strike" style="background:var(--bg3);border:0.5px solid var(--border2);border-radius:3px;color:var(--text);font-family:'Courier New',monospace;font-size:9px;padding:2px 5px">
+          <option value="">Select Strike</option>
+        </select>
+        <select id="port-cp" style="background:var(--bg3);border:0.5px solid var(--border2);border-radius:3px;color:var(--text);font-family:'Courier New',monospace;font-size:9px;padding:2px 5px">
+          <option value="C">Call</option>
+          <option value="P">Put</option>
+        </select>
+        <select id="port-side" style="background:var(--bg3);border:0.5px solid var(--border2);border-radius:3px;color:var(--text);font-family:'Courier New',monospace;font-size:9px;padding:2px 5px">
+          <option value="long">Long</option>
+          <option value="short">Short</option>
+        </select>
+        <input id="port-lots" type="number" value="1" min="1" style="background:var(--bg3);border:0.5px solid var(--border2);border-radius:3px;color:var(--text);font-family:'Courier New',monospace;font-size:9px;padding:2px 5px;width:50px;text-align:right" placeholder="Lots">
+        <input id="port-premium" type="number" step="0.01" style="background:var(--bg3);border:0.5px solid var(--border2);border-radius:3px;color:var(--text);font-family:'Courier New',monospace;font-size:9px;padding:2px 5px;width:60px;text-align:right" placeholder="Premium">
+        <button onclick="addPortfolioLeg()" style="background:var(--blue);border:none;border-radius:3px;color:#fff;font-family:'Courier New',monospace;font-size:9px;padding:3px 10px;cursor:pointer">Add Leg</button>
+      </div>
+      <div id="port-legs-list" style="display:flex;flex-direction:column;gap:4px"></div>
+    </div>
+
+    <!-- Portfolio Greeks Summary -->
+    <div style="background:var(--bg2);border:0.5px solid var(--border);border-radius:6px;padding:10px;margin-bottom:10px">
+      <div class="scard-title">Portfolio Greeks (Lots)</div>
+      <div style="display:grid;grid-template-columns:repeat(5,1fr);gap:10px;font-size:9px">
+        <div class="hs"><span class="hs-lbl">Delta Lots</span><span class="hs-val" id="port-delta">—</span></div>
+        <div class="hs"><span class="hs-lbl">Gamma Lots</span><span class="hs-val" id="port-gamma">—</span></div>
+        <div class="hs"><span class="hs-lbl">Theta ($/day)</span><span class="hs-val" id="port-theta">—</span></div>
+        <div class="hs"><span class="hs-lbl">Vega ($/1%)</span><span class="hs-val" id="port-vega">—</span></div>
+        <div class="hs"><span class="hs-lbl">Notional ($)</span><span class="hs-val" id="port-notional">—</span></div>
+      </div>
+    </div>
+
+    <!-- Stress Test Controls -->
+    <div style="background:var(--bg2);border:0.5px solid var(--border);border-radius:6px;padding:10px;margin-bottom:10px">
+      <div class="scard-title">Stress Test Parameters</div>
+      <div style="display:flex;gap:12px;align-items:center;flex-wrap:wrap;font-size:9px">
+        <div class="hs"><span class="hs-lbl">Futures Price</span><input id="stress-F" type="number" step="0.01" style="background:var(--bg3);border:0.5px solid var(--amber);border-radius:3px;color:var(--atm);font-family:'Courier New',monospace;font-size:11px;padding:3px 6px;width:70px;text-align:right" oninput="runStressTest()"></div>
+        <div class="hs"><span class="hs-lbl">Days Forward</span><input id="stress-days" type="number" value="0" min="0" style="background:var(--bg3);border:0.5px solid var(--border2);border-radius:3px;color:var(--text);font-family:'Courier New',monospace;font-size:11px;padding:3px 6px;width:50px;text-align:right" oninput="runStressTest()"></div>
+        <div class="hs"><span class="hs-lbl">IV Change (pp)</span><input id="stress-ivchg" type="number" value="0" step="0.1" style="background:var(--bg3);border:0.5px solid var(--border2);border-radius:3px;color:var(--text);font-family:'Courier New',monospace;font-size:11px;padding:3px 6px;width:60px;text-align:right" oninput="runStressTest()"></div>
+        <button onclick="runStressTest()" style="background:var(--blue);border:none;border-radius:3px;color:#fff;font-family:'Courier New',monospace;font-size:9px;padding:4px 12px;cursor:pointer">CALCULATE</button>
+        <span style="font-size:8px;color:var(--text3)">Enter price/days/IV change → see P&L impact</span>
+      </div>
+    </div>
+
+    <!-- Stress Test Results -->
+    <div style="background:var(--bg2);border:0.5px solid var(--border);border-radius:6px;padding:10px">
+      <div class="scard-title">Stress Test Results</div>
+      <div style="overflow-x:auto;max-height:400px" id="stress-results">
+        <div class="empty" style="padding:20px">Add portfolio legs and set stress parameters to see P&L impact.</div>
+      </div>
     </div>
   </div>
 </div>
@@ -1951,6 +2609,8 @@ function showSec(id,el){
   if(id==='strategy')initStrategy();
   if(id==='volsmile')renderVolSmile();
   if(id==='sentiment')renderSentiment();
+  if(id==='oichanges'&&latestDate)renderOIChanges();
+  if(id==='portfolio')initPortfolio();
 }
 function setTab(tab,btn){
   activeTab=tab;
@@ -2900,6 +3560,294 @@ function runStrategy(){
 
   setSB(`Strategy: ${TEMPLATES.find(t=>t.name)?stratLegs.map(l=>`${l.long?'Long':'Short'} ${l.qty} ${EXP_LBL[l.exp]||l.exp} ${l.strike}${l.pc}`).join(' | '):''} · BEs: ${bes.join(', ')||'none'}`);
 }
+
+
+// ═══════════════════ OI CHANGES TAB ═══════════════════
+let oicData = {};
+
+function renderOIChanges(){
+  if(!latestDate){document.getElementById('oic-wrap').innerHTML='<div class="empty">Load CSV data to see OI changes.</div>';return;}
+
+  const dd = days[latestDate];
+  const exps = getActiveExp(dd);
+  const sel = document.getElementById('oic-exp');
+  const prev = sel.value;
+  sel.innerHTML = exps.map(e=>`<option value="${e}">${EXP_LBL[e]||e}</option>`).join('');
+  if(prev && exps.includes(prev)) sel.value = prev;
+  const exp = sel.value; if(!exp) return;
+
+  const minOI = parseInt(document.getElementById('oic-min').value) || 1000;
+  const F = getFutPrice(exp, latestDate) || futPrices[exp] || 70;
+
+  // Get all dates sorted
+  const sortedDates = Object.keys(days).sort();
+  const todayIdx = sortedDates.indexOf(latestDate);
+  const prevDate = sortedDates[todayIdx-1] || null;
+  const day5Date = sortedDates[Math.max(0, todayIdx-5)] || null;
+  const monthStart = latestDate.substring(0, 8) + '01';
+  const mtdDates = sortedDates.filter(d => d >= monthStart && d <= latestDate);
+
+  // Get strikes with OI or Vol >= threshold
+  const calls = dd.calls?.[exp] || {};
+  const puts = dd.puts?.[exp] || {};
+  const allStrikes = new Set([...Object.keys(calls), ...Object.keys(puts)].map(Number));
+  const validStrikes = [...allStrikes].filter(s => {
+    const c = calls[s] || {}, p = puts[s] || {};
+    return (c.oi || 0) + (p.oi || 0) >= minOI || (c.vol || 0) + (p.vol || 0) >= minOI;
+  }).sort((a,b) => b-a);
+
+  if(!validStrikes.length){document.getElementById('oic-wrap').innerHTML='<div class="empty">No strikes meet the threshold.</div>';return;}
+
+  // Build table
+  let h = '<table><thead><tr>';
+  h += '<th class="sk">Strike</th>';
+  // Call columns
+  h += '<th style="color:var(--call)">OI</th><th style="color:var(--call)">Vol</th><th style="color:var(--call)">OI Δ1D</th><th style="color:var(--call)">Vol 5D</th><th style="color:var(--call)">OI Δ5D</th><th style="color:var(--call)">Vol MTD</th><th style="color:var(--call)">OI ΔMTD</th><th style="color:var(--call)">IV%</th><th style="color:var(--call)">IV Δ1D</th><th style="color:var(--call)">IV Δ5D</th><th style="color:var(--call)">IV ΔMTD</th>';
+  h += '<th class="sk" style="min-width:8px"></th>';
+  // Put columns
+  h += '<th style="color:var(--put)">OI</th><th style="color:var(--put)">Vol</th><th style="color:var(--put)">OI Δ1D</th><th style="color:var(--put)">Vol 5D</th><th style="color:var(--put)">OI Δ5D</th><th style="color:var(--put)">Vol MTD</th><th style="color:var(--put)">OI ΔMTD</th><th style="color:var(--put)">IV%</th><th style="color:var(--put)">IV Δ1D</th><th style="color:var(--put)">IV Δ5D</th><th style="color:var(--put)">IV ΔMTD</th>';
+  h += '</tr></thead><tbody>';
+
+  validStrikes.forEach(K => {
+    const isATM = Math.abs(K-F) < 0.5;
+    h += `<tr${isATM?' class="atm"':''}><td class="sk">${K}${isATM?'<span class="atm-tag">ATM</span>':''}</td>`;
+
+    ['calls','puts'].forEach(side => {
+      const rec = dd[side]?.[exp]?.[K] || {};
+      const oi = rec.oi || 0;
+      const vol = rec.vol || 0;
+      const oiChg = rec.oiChange || 0;
+
+      // 5-day accum
+      let vol5d = 0, oi5dStart = 0;
+      if(day5Date && days[day5Date]){
+        const d5 = days[day5Date][side]?.[exp]?.[K];
+        oi5dStart = d5?.oi || 0;
+        for(let i = Math.max(0, todayIdx-5); i <= todayIdx; i++){
+          const d = days[sortedDates[i]];
+          if(d) vol5d += d[side]?.[exp]?.[K]?.vol || 0;
+        }
+      }
+      const oiChg5d = oi - oi5dStart;
+
+      // MTD accum
+      let volMTD = 0, oiMTDStart = 0;
+      if(mtdDates.length > 0){
+        const dMTD = days[mtdDates[0]];
+        if(dMTD) oiMTDStart = dMTD[side]?.[exp]?.[K]?.oi || 0;
+        mtdDates.forEach(d => {
+          const day = days[d];
+          if(day) volMTD += day[side]?.[exp]?.[K]?.vol || 0;
+        });
+      }
+      const oiChgMTD = oi - oiMTDStart;
+
+      // IV
+      const iv = avgIV(exp, K, dd, latestDate);
+      const iv1d = prevDate ? (iv - (avgIV(exp, K, days[prevDate], prevDate) || iv)) : null;
+      const iv5d = day5Date ? (iv - (avgIV(exp, K, days[day5Date], day5Date) || iv)) : null;
+      const ivMTD = mtdDates.length > 0 ? (iv - (avgIV(exp, K, days[mtdDates[0]], mtdDates[0]) || iv)) : null;
+
+      const ivStr = iv ? (iv*100).toFixed(1)+'%' : '—';
+      const fmt = v => v !== null && !isNaN(v) ? (v>0?'+':'')+(v*100).toFixed(1) : '—';
+      const cls = v => v !== null && !isNaN(v) ? (v>0?'pos':'neg') : 'zero';
+
+      h += `<td>${oi.toLocaleString()}</td>`;
+      h += `<td>${vol.toLocaleString()}</td>`;
+      h += `<td class="${cls(oiChg)}">${oiChg>0?'+':''}${oiChg.toLocaleString()}</td>`;
+      h += `<td>${vol5d.toLocaleString()}</td>`;
+      h += `<td class="${cls(oiChg5d)}">${oiChg5d>0?'+':''}${oiChg5d.toLocaleString()}</td>`;
+      h += `<td>${volMTD.toLocaleString()}</td>`;
+      h += `<td class="${cls(oiChgMTD)}">${oiChgMTD>0?'+':''}${oiChgMTD.toLocaleString()}</td>`;
+      h += `<td class="iv-${iv?(iv*100>30?'r':iv*100>22?'a':'g'):'zero'}">${ivStr}</td>`;
+      h += `<td class="${cls(iv1d)}">${fmt(iv1d)}</td>`;
+      h += `<td class="${cls(iv5d)}">${fmt(iv5d)}</td>`;
+      h += `<td class="${cls(ivMTD)}">${fmt(ivMTD)}</td>`;
+
+      if(side === 'calls') h += '<td class="sk" style="min-width:8px"></td>';
+    });
+
+    h += '</tr>';
+  });
+  h += '</tbody></table>';
+  document.getElementById('oic-wrap').innerHTML = h;
+  setSB(`OI Changes · ${EXP_LBL[exp]||exp} · ${validStrikes.length} strikes · F=${F.toFixed(2)}`);
+}
+
+// ═══════════════════ PORTFOLIO ANALYSIS TAB ═══════════════════
+let portfolioLegs = [];
+
+function initPortfolio(){
+  if(!latestDate) return;
+  const dd = days[latestDate];
+  const exps = getActiveExp(dd);
+  const expSel = document.getElementById('port-exp');
+  expSel.innerHTML = '<option value="">Select Expiry</option>' + exps.map(e=>`<option value="${e}">${EXP_LBL[e]||e}</option>`).join('');
+  expSel.onchange = () => updatePortfolioStrikes();
+}
+
+function updatePortfolioStrikes(){
+  const exp = document.getElementById('port-exp').value;
+  if(!exp || !latestDate) return;
+  const dd = days[latestDate];
+  const strikes = new Set([...Object.keys(dd.calls?.[exp]||{}), ...Object.keys(dd.puts?.[exp]||{})].map(Number));
+  const sorted = [...strikes].sort((a,b)=>b-a);
+  document.getElementById('port-strike').innerHTML = '<option value="">Select Strike</option>' + sorted.map(s=>`<option value="${s}">${s}</option>`).join('');
+}
+
+function addPortfolioLeg(){
+  const exp = document.getElementById('port-exp').value;
+  const strike = parseFloat(document.getElementById('port-strike').value);
+  const cp = document.getElementById('port-cp').value;
+  const side = document.getElementById('port-side').value;
+  const lots = parseInt(document.getElementById('port-lots').value) || 1;
+  const premium = parseFloat(document.getElementById('port-premium').value) || 0;
+
+  if(!exp || !strike) return;
+
+  portfolioLegs.push({exp, strike, cp, side, lots, premium});
+  renderPortfolioLegs();
+  calcPortfolioGreeks();
+  runStressTest();
+}
+
+function removePortfolioLeg(idx){
+  portfolioLegs.splice(idx, 1);
+  renderPortfolioLegs();
+  calcPortfolioGreeks();
+  runStressTest();
+}
+
+function renderPortfolioLegs(){
+  const el = document.getElementById('port-legs-list');
+  if(!portfolioLegs.length){el.innerHTML='<span style="font-size:9px;color:var(--text3)">No legs added yet.</span>';return;}
+  el.innerHTML = portfolioLegs.map((leg,i)=>`
+    <div style="display:flex;gap:8px;align-items:center;background:var(--bg3);border:0.5px solid var(--border);border-radius:3px;padding:4px 8px;font-size:9px">
+      <span style="color:var(--atm)">${EXP_LBL[leg.exp]||leg.exp}</span>
+      <span style="color:var(--text)">${leg.strike}</span>
+      <span style="color:${leg.cp==='C'?'var(--call)':'var(--put)'}">${leg.cp==='C'?'Call':'Put'}</span>
+      <span style="color:${leg.side==='long'?'var(--pos)':'var(--neg)'}">${leg.side.toUpperCase()}</span>
+      <span>${leg.lots} lots</span>
+      <span>@ ${leg.premium.toFixed(2)}</span>
+      <button onclick="removePortfolioLeg(${i})" style="background:none;border:none;color:var(--neg);cursor:pointer;font-size:13px;margin-left:auto">×</button>
+    </div>
+  `).join('');
+}
+
+function calcPortfolioGreeks(){
+  if(!latestDate || !portfolioLegs.length){
+    document.getElementById('port-delta').textContent='—';
+    document.getElementById('port-gamma').textContent='—';
+    document.getElementById('port-theta').textContent='—';
+    document.getElementById('port-vega').textContent='—';
+    document.getElementById('port-notional').textContent='—';
+    return;
+  }
+
+  const dd = days[latestDate];
+  let totalDelta = 0, totalGamma = 0, totalTheta = 0, totalVega = 0, totalPremium = 0;
+
+  portfolioLegs.forEach(leg => {
+    const F = getFutPrice(leg.exp, latestDate) || futPrices[leg.exp];
+    const T = getT(leg.exp, latestDate);
+    const iv = avgIV(leg.exp, leg.strike, dd, latestDate) || 0.2;
+    const isCall = leg.cp === 'C';
+    const g = b76Greeks(F, leg.strike, T, R, iv, isCall);
+    const mult = leg.side === 'long' ? 1 : -1;
+    const contractSize = getComm().contractSize || 50000;
+
+    // Delta lots = delta * lots * contract_size / 100 (for cents to dollars)
+    totalDelta += g.delta * leg.lots * mult;
+    totalGamma += g.gamma * leg.lots * mult;
+    // Theta in $/day per contract = theta * contract_size / 100
+    totalTheta += g.theta * leg.lots * mult * contractSize / 100;
+    // Vega in $ per 1% IV move = vega * contract_size / 100
+    totalVega += g.vega * leg.lots * mult * contractSize / 100;
+    totalPremium += leg.premium * leg.lots * mult * contractSize / 100;
+  });
+
+  document.getElementById('port-delta').textContent = totalDelta.toFixed(2);
+  document.getElementById('port-gamma').textContent = totalGamma.toFixed(4);
+  document.getElementById('port-theta').textContent = totalTheta.toFixed(2);
+  document.getElementById('port-vega').textContent = totalVega.toFixed(2);
+  document.getElementById('port-notional').textContent = totalPremium.toFixed(2);
+}
+
+function runStressTest(){
+  if(!latestDate || !portfolioLegs.length){
+    document.getElementById('stress-results').innerHTML='<div class="empty" style="padding:20px">Add portfolio legs and set stress parameters.</div>';
+    return;
+  }
+
+  const F = parseFloat(document.getElementById('stress-F').value) || (futPrices[getActiveExp(days[latestDate])[0]] || 70);
+  const daysFwd = parseInt(document.getElementById('stress-days').value) || 0;
+  const ivChg = parseFloat(document.getElementById('stress-ivchg').value) || 0;
+
+  const dd = days[latestDate];
+  let currentValue = 0, stressedValue = 0;
+
+  portfolioLegs.forEach(leg => {
+    const contractSize = getComm().contractSize || 50000;
+    const mult = leg.side === 'long' ? 1 : -1;
+
+    // Current value
+    const ivCurrent = avgIV(leg.exp, leg.strike, dd, latestDate) || 0.2;
+    const Tcurrent = getT(leg.exp, latestDate);
+    const Fcurrent = getFutPrice(leg.exp, latestDate) || futPrices[leg.exp];
+    const priceCurrent = b76Greeks(Fcurrent, leg.strike, Tcurrent, R, ivCurrent, leg.cp==='C').price;
+    currentValue += priceCurrent * leg.lots * mult * contractSize / 100;
+
+    // Stressed value
+    const ivStress = Math.max(0.01, ivCurrent + ivChg/100);
+    const Tstress = Math.max(1/365, Tcurrent - daysFwd/365);
+    const priceStress = b76Greeks(F, leg.strike, Tstress, R, ivStress, leg.cp==='C').price;
+    stressedValue += priceStress * leg.lots * mult * contractSize / 100;
+  });
+
+  const pnl = stressedValue - currentValue;
+  const pnlPct = currentValue !== 0 ? (pnl / Math.abs(currentValue) * 100).toFixed(2) + '%' : '—';
+
+  // Build results table
+  let h = '<table class="rtbl" style="font-size:9px"><thead><tr>';
+  h += '<th>Leg</th><th>Current $</th><th>Stressed $</th><th>P&L $</th><th>P&L %</th>';
+  h += '</tr></thead><tbody>';
+
+  portfolioLegs.forEach((leg, i) => {
+    const contractSize = getComm().contractSize || 50000;
+    const mult = leg.side === 'long' ? 1 : -1;
+
+    const ivCurrent = avgIV(leg.exp, leg.strike, dd, latestDate) || 0.2;
+    const Tcurrent = getT(leg.exp, latestDate);
+    const Fcurrent = getFutPrice(leg.exp, latestDate) || futPrices[leg.exp];
+    const priceCurrent = b76Greeks(Fcurrent, leg.strike, Tcurrent, R, ivCurrent, leg.cp==='C').price;
+    const valCurrent = priceCurrent * leg.lots * mult * contractSize / 100;
+
+    const ivStress = Math.max(0.01, ivCurrent + ivChg/100);
+    const Tstress = Math.max(1/365, Tcurrent - daysFwd/365);
+    const priceStress = b76Greeks(F, leg.strike, Tstress, R, ivStress, leg.cp==='C').price;
+    const valStress = priceStress * leg.lots * mult * contractSize / 100;
+
+    const legPnl = valStress - valCurrent;
+    const legPnlPct = valCurrent !== 0 ? (legPnl / Math.abs(valCurrent) * 100).toFixed(1) + '%' : '—';
+
+    h += `<tr><td>${EXP_LBL[leg.exp]||leg.exp} ${leg.strike}${leg.cp} ${leg.side} ${leg.lots}lot</td>`;
+    h += `<td>${valCurrent.toFixed(2)}</td>`;
+    h += `<td>${valStress.toFixed(2)}</td>`;
+    h += `<td class="${legPnl>=0?'pos':'neg'}">${legPnl>=0?'+':''}${legPnl.toFixed(2)}</td>`;
+    h += `<td class="${legPnl>=0?'pos':'neg'}">${legPnlPct}</td></tr>`;
+  });
+
+  h += `<tr style="border-top:2px solid var(--border);font-weight:700">`;
+  h += `<td>PORTFOLIO TOTAL</td>`;
+  h += `<td>${currentValue.toFixed(2)}</td>`;
+  h += `<td>${stressedValue.toFixed(2)}</td>`;
+  h += `<td class="${pnl>=0?'pos':'neg'}">${pnl>=0?'+':''}${pnl.toFixed(2)}</td>`;
+  h += `<td class="${pnl>=0?'pos':'neg'}">${pnlPct}</td></tr>`;
+  h += '</tbody></table>';
+
+  document.getElementById('stress-results').innerHTML = h;
+}
+
 </script>
 </body>
 </html>
