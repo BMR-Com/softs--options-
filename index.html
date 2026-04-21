@@ -242,6 +242,10 @@ function initPortfolio(){
   const expSel = document.getElementById('port-exp');
   expSel.innerHTML = '<option value="">Select Expiry</option>' + exps.map(e=>`<option value="${e}">${EXP_LBL[e]||e}</option>`).join('');
   expSel.onchange = () => updatePortfolioStrikes();
+  // Set default F for stress test
+  if(!document.getElementById('stress-F').value && futPrices[exps[0]]){
+    document.getElementById('stress-F').value = futPrices[exps[0]].toFixed(2);
+  }
 }
 
 function updatePortfolioStrikes(){
@@ -265,22 +269,22 @@ function addPortfolioLeg(){
 
   portfolioLegs.push({exp, strike, cp, side, lots, premium});
   renderPortfolioLegs();
-  calcPortfolioGreeks();
+  renderPortfolioTable();
   runStressTest();
 }
 
 function removePortfolioLeg(idx){
   portfolioLegs.splice(idx, 1);
   renderPortfolioLegs();
-  calcPortfolioGreeks();
+  renderPortfolioTable();
   runStressTest();
 }
 
 function renderPortfolioLegs(){
   const el = document.getElementById('port-legs-list');
-  if(!portfolioLegs.length){el.innerHTML='<span style="font-size:9px;color:var(--text3)">No legs added yet.</span>';return;}
+  if(!portfolioLegs.length){el.innerHTML='<span style="font-size:10px;color:var(--text3)">No legs added yet.</span>';return;}
   el.innerHTML = portfolioLegs.map((leg,i)=>`
-    <div style="display:flex;gap:8px;align-items:center;background:var(--bg3);border:0.5px solid var(--border);border-radius:3px;padding:4px 8px;font-size:9px">
+    <div style="display:flex;gap:8px;align-items:center;background:var(--bg3);border:0.5px solid var(--border);border-radius:3px;padding:4px 8px;font-size:10px">
       <span style="color:var(--atm)">${EXP_LBL[leg.exp]||leg.exp}</span>
       <span style="color:var(--text)">${leg.strike}</span>
       <span style="color:${leg.cp==='C'?'var(--call)':'var(--put)'}">${leg.cp==='C'?'Call':'Put'}</span>
@@ -292,18 +296,21 @@ function renderPortfolioLegs(){
   `).join('');
 }
 
-function calcPortfolioGreeks(){
+function renderPortfolioTable(){
   if(!latestDate || !portfolioLegs.length){
-    document.getElementById('port-delta').textContent='—';
-    document.getElementById('port-gamma').textContent='—';
-    document.getElementById('port-theta').textContent='—';
-    document.getElementById('port-vega').textContent='—';
-    document.getElementById('port-notional').textContent='—';
+    document.getElementById('port-table').innerHTML='<div class="empty" style="padding:20px">Add portfolio legs to see details.</div>';
     return;
   }
 
   const dd = days[latestDate];
-  let totalDelta = 0, totalGamma = 0, totalTheta = 0, totalVega = 0, totalPremium = 0;
+  const contractSize = getComm().contractSize || 50000;
+
+  let h = '<table class="rtbl" style="font-size:9px"><thead><tr>';
+  h += '<th>Expiry</th><th>Side</th><th>Lots</th><th>C/P</th><th>Strike</th><th>Premium</th>';
+  h += '<th>Mark</th><th>IV%</th><th>Delta</th><th>Gamma</th><th>Theta</th><th>Vega</th><th>P&L</th>';
+  h += '</tr></thead><tbody>';
+
+  let totalDelta = 0, totalGamma = 0, totalTheta = 0, totalVega = 0, totalPL = 0;
 
   portfolioLegs.forEach(leg => {
     const F = getFutPrice(leg.exp, latestDate) || futPrices[leg.exp];
@@ -312,28 +319,50 @@ function calcPortfolioGreeks(){
     const isCall = leg.cp === 'C';
     const g = b76Greeks(F, leg.strike, T, R, iv, isCall);
     const mult = leg.side === 'long' ? 1 : -1;
-    const contractSize = getComm().contractSize || 50000;
 
-    // Delta lots = delta * lots * contract_size / 100 (for cents to dollars)
-    totalDelta += g.delta * leg.lots * mult;
-    totalGamma += g.gamma * leg.lots * mult;
-    // Theta in $/day per contract = theta * contract_size / 100
-    totalTheta += g.theta * leg.lots * mult * contractSize / 100;
-    // Vega in $ per 1% IV move = vega * contract_size / 100
-    totalVega += g.vega * leg.lots * mult * contractSize / 100;
-    totalPremium += leg.premium * leg.lots * mult * contractSize / 100;
+    const mark = g.price;
+    const pl = (mark - leg.premium) * leg.lots * mult * contractSize / 100;
+    const deltaLots = g.delta * leg.lots * mult;
+    const gammaLots = g.gamma * leg.lots * mult;
+    const thetaUSD = g.theta * leg.lots * mult * contractSize / 100;
+    const vegaUSD = g.vega * leg.lots * mult * contractSize / 100;
+
+    totalDelta += deltaLots;
+    totalGamma += gammaLots;
+    totalTheta += thetaUSD;
+    totalVega += vegaUSD;
+    totalPL += pl;
+
+    h += `<tr><td style="color:var(--atm)">${EXP_LBL[leg.exp]||leg.exp}</td>`;
+    h += `<td style="color:${leg.side==='long'?'var(--pos)':'var(--neg)'}">${leg.side.toUpperCase()}</td>`;
+    h += `<td>${leg.lots}</td><td style="color:${leg.cp==='C'?'var(--call)':'var(--put)'}">${leg.cp}</td>`;
+    h += `<td>${leg.strike}</td><td>${leg.premium.toFixed(2)}</td>`;
+    h += `<td>${mark.toFixed(2)}</td>`;
+    h += `<td class="iv-${iv*100>30?'r':iv*100>22?'a':'g'}">${(iv*100).toFixed(1)}%</td>`;
+    h += `<td>${deltaLots.toFixed(2)}</td>`;
+    h += `<td>${gammaLots.toFixed(4)}</td>`;
+    h += `<td>${thetaUSD.toFixed(2)}</td>`;
+    h += `<td>${vegaUSD.toFixed(2)}</td>`;
+    h += `<td class="${pl>=0?'pos':'neg'}">${pl>=0?'+':''}${pl.toFixed(2)}</td></tr>`;
   });
 
-  document.getElementById('port-delta').textContent = totalDelta.toFixed(2);
-  document.getElementById('port-gamma').textContent = totalGamma.toFixed(4);
-  document.getElementById('port-theta').textContent = totalTheta.toFixed(2);
-  document.getElementById('port-vega').textContent = totalVega.toFixed(2);
-  document.getElementById('port-notional').textContent = totalPremium.toFixed(2);
+  // Total row
+  h += `<tr style="border-top:2px solid var(--border);font-weight:700;background:rgba(88,166,255,.08)">`;
+  h += `<td colspan="7">PORTFOLIO TOTAL</td>`;
+  h += `<td>—</td>`;
+  h += `<td>${totalDelta.toFixed(2)}</td>`;
+  h += `<td>${totalGamma.toFixed(4)}</td>`;
+  h += `<td>${totalTheta.toFixed(2)}</td>`;
+  h += `<td>${totalVega.toFixed(2)}</td>`;
+  h += `<td class="${totalPL>=0?'pos':'neg'}">${totalPL>=0?'+':''}${totalPL.toFixed(2)}</td></tr>`;
+  h += '</tbody></table>';
+
+  document.getElementById('port-table').innerHTML = h;
 }
 
 function runStressTest(){
   if(!latestDate || !portfolioLegs.length){
-    document.getElementById('stress-results').innerHTML='<div class="empty" style="padding:20px">Add portfolio legs and set stress parameters.</div>';
+    document.getElementById('stress-results').innerHTML='<div class="empty" style="padding:20px">Add legs and click CALCULATE to see P&L impact.</div>';
     return;
   }
 
@@ -342,65 +371,76 @@ function runStressTest(){
   const ivChg = parseFloat(document.getElementById('stress-ivchg').value) || 0;
 
   const dd = days[latestDate];
-  let currentValue = 0, stressedValue = 0;
+  const contractSize = getComm().contractSize || 50000;
 
+  // Calculate current portfolio value
+  let currentValue = 0;
   portfolioLegs.forEach(leg => {
-    const contractSize = getComm().contractSize || 50000;
     const mult = leg.side === 'long' ? 1 : -1;
-
-    // Current value
-    const ivCurrent = avgIV(leg.exp, leg.strike, dd, latestDate) || 0.2;
-    const Tcurrent = getT(leg.exp, latestDate);
-    const Fcurrent = getFutPrice(leg.exp, latestDate) || futPrices[leg.exp];
-    const priceCurrent = b76Greeks(Fcurrent, leg.strike, Tcurrent, R, ivCurrent, leg.cp==='C').price;
-    currentValue += priceCurrent * leg.lots * mult * contractSize / 100;
-
-    // Stressed value
-    const ivStress = Math.max(0.01, ivCurrent + ivChg/100);
-    const Tstress = Math.max(1/365, Tcurrent - daysFwd/365);
-    const priceStress = b76Greeks(F, leg.strike, Tstress, R, ivStress, leg.cp==='C').price;
-    stressedValue += priceStress * leg.lots * mult * contractSize / 100;
+    currentValue += leg.premium * leg.lots * mult * contractSize / 100;
   });
 
-  const pnl = stressedValue - currentValue;
-  const pnlPct = currentValue !== 0 ? (pnl / Math.abs(currentValue) * 100).toFixed(2) + '%' : '—';
-
-  // Build results table
+  // Build stress table: each scenario
   let h = '<table class="rtbl" style="font-size:9px"><thead><tr>';
-  h += '<th>Leg</th><th>Current $</th><th>Stressed $</th><th>P&L $</th><th>P&L %</th>';
+  h += '<th>Expiry</th><th>Side</th><th>Lots</th><th>C/P</th><th>Strike</th><th>Premium</th>';
+  h += '<th>Price Chg</th><th>IV Chg</th><th>Days</th><th>Stressed P&L</th><th>Price Effect</th><th>IV Effect</th><th>Time Effect</th><th>Combined</th>';
   h += '</tr></thead><tbody>';
 
-  portfolioLegs.forEach((leg, i) => {
-    const contractSize = getComm().contractSize || 50000;
+  let totalStressed = 0, totalPriceEff = 0, totalIVEff = 0, totalTimeEff = 0, totalCombined = 0;
+
+  portfolioLegs.forEach(leg => {
+    const Fbase = getFutPrice(leg.exp, latestDate) || futPrices[leg.exp];
+    const Tbase = getT(leg.exp, latestDate);
+    const ivBase = avgIV(leg.exp, leg.strike, dd, latestDate) || 0.2;
+    const isCall = leg.cp === 'C';
     const mult = leg.side === 'long' ? 1 : -1;
 
-    const ivCurrent = avgIV(leg.exp, leg.strike, dd, latestDate) || 0.2;
-    const Tcurrent = getT(leg.exp, latestDate);
-    const Fcurrent = getFutPrice(leg.exp, latestDate) || futPrices[leg.exp];
-    const priceCurrent = b76Greeks(Fcurrent, leg.strike, Tcurrent, R, ivCurrent, leg.cp==='C').price;
-    const valCurrent = priceCurrent * leg.lots * mult * contractSize / 100;
+    const basePrice = b76Greeks(Fbase, leg.strike, Tbase, R, ivBase, isCall).price;
+    const baseValue = basePrice * leg.lots * mult * contractSize / 100;
 
-    const ivStress = Math.max(0.01, ivCurrent + ivChg/100);
-    const Tstress = Math.max(1/365, Tcurrent - daysFwd/365);
-    const priceStress = b76Greeks(F, leg.strike, Tstress, R, ivStress, leg.cp==='C').price;
-    const valStress = priceStress * leg.lots * mult * contractSize / 100;
+    // Stressed parameters
+    const Fstress = F;
+    const Tstress = Math.max(1/365, Tbase - daysFwd/365);
+    const ivStress = Math.max(0.01, ivBase + ivChg/100);
 
-    const legPnl = valStress - valCurrent;
-    const legPnlPct = valCurrent !== 0 ? (legPnl / Math.abs(valCurrent) * 100).toFixed(1) + '%' : '—';
+    // Individual effects
+    const priceOnly = b76Greeks(Fstress, leg.strike, Tbase, R, ivBase, isCall).price;
+    const ivOnly = b76Greeks(Fbase, leg.strike, Tbase, R, ivStress, isCall).price;
+    const timeOnly = b76Greeks(Fbase, leg.strike, Tstress, R, ivBase, isCall).price;
+    const combined = b76Greeks(Fstress, leg.strike, Tstress, R, ivStress, isCall).price;
 
-    h += `<tr><td>${EXP_LBL[leg.exp]||leg.exp} ${leg.strike}${leg.cp} ${leg.side} ${leg.lots}lot</td>`;
-    h += `<td>${valCurrent.toFixed(2)}</td>`;
-    h += `<td>${valStress.toFixed(2)}</td>`;
-    h += `<td class="${legPnl>=0?'pos':'neg'}">${legPnl>=0?'+':''}${legPnl.toFixed(2)}</td>`;
-    h += `<td class="${legPnl>=0?'pos':'neg'}">${legPnlPct}</td></tr>`;
+    const priceEff = (priceOnly - basePrice) * leg.lots * mult * contractSize / 100;
+    const ivEff = (ivOnly - basePrice) * leg.lots * mult * contractSize / 100;
+    const timeEff = (timeOnly - basePrice) * leg.lots * mult * contractSize / 100;
+    const combinedEff = (combined - basePrice) * leg.lots * mult * contractSize / 100;
+    const stressedPL = (combined - leg.premium) * leg.lots * mult * contractSize / 100;
+
+    totalStressed += stressedPL;
+    totalPriceEff += priceEff;
+    totalIVEff += ivEff;
+    totalTimeEff += timeEff;
+    totalCombined += combinedEff;
+
+    h += `<tr><td style="color:var(--atm)">${EXP_LBL[leg.exp]||leg.exp}</td>`;
+    h += `<td style="color:${leg.side==='long'?'var(--pos)':'var(--neg)'}">${leg.side.toUpperCase()}</td>`;
+    h += `<td>${leg.lots}</td><td style="color:${leg.cp==='C'?'var(--call)':'var(--put)'}">${leg.cp}</td>`;
+    h += `<td>${leg.strike}</td><td>${leg.premium.toFixed(2)}</td>`;
+    h += `<td>${Fstress.toFixed(2)}</td><td>${ivChg>0?'+':''}${ivChg.toFixed(1)}pp</td><td>${daysFwd}d</td>`;
+    h += `<td class="${stressedPL>=0?'pos':'neg'}">${stressedPL>=0?'+':''}${stressedPL.toFixed(2)}</td>`;
+    h += `<td class="${priceEff>=0?'pos':'neg'}">${priceEff>=0?'+':''}${priceEff.toFixed(2)}</td>`;
+    h += `<td class="${ivEff>=0?'pos':'neg'}">${ivEff>=0?'+':''}${ivEff.toFixed(2)}</td>`;
+    h += `<td class="${timeEff>=0?'pos':'neg'}">${timeEff>=0?'+':''}${timeEff.toFixed(2)}</td>`;
+    h += `<td class="${combinedEff>=0?'pos':'neg'}">${combinedEff>=0?'+':''}${combinedEff.toFixed(2)}</td></tr>`;
   });
 
-  h += `<tr style="border-top:2px solid var(--border);font-weight:700">`;
-  h += `<td>PORTFOLIO TOTAL</td>`;
-  h += `<td>${currentValue.toFixed(2)}</td>`;
-  h += `<td>${stressedValue.toFixed(2)}</td>`;
-  h += `<td class="${pnl>=0?'pos':'neg'}">${pnl>=0?'+':''}${pnl.toFixed(2)}</td>`;
-  h += `<td class="${pnl>=0?'pos':'neg'}">${pnlPct}</td></tr>`;
+  // Total row
+  h += `<tr style="border-top:2px solid var(--border);font-weight:700;background:rgba(88,166,255,.08)">`;
+  h += `<td colspan="8">PORTFOLIO TOTAL</td>`;
+  h += `<td class="${totalStressed>=0?'pos':'neg'}">${totalStressed>=0?'+':''}${totalStressed.toFixed(2)}</td>`;
+  h += `<td class="${totalPriceEff>=0?'pos':'neg'}">${totalPriceEff>=0?'+':''}${totalPriceEff.toFixed(2)}</td>`;
+  h += `<td class="${totalIVEff>=0?'pos':'neg'}">${totalIVEff>=0?'+':''}${totalIVEff.toFixed(2)}</td>`;
+  h += `<td class="${totalTimeEff>=0?'pos':'neg'}">${totalTimeEff>=0?'+':''}${totalTimeEff.toFixed(2)}</td>`;
+  h += `<td class="${totalCombined>=0?'pos':'neg'}">${totalCombined>=0?'+':''}${totalCombined.toFixed(2)}</td></tr>`;
   h += '</tbody></table>';
 
   document.getElementById('stress-results').innerHTML = h;
@@ -581,6 +621,10 @@ function initPortfolio(){
   const expSel = document.getElementById('port-exp');
   expSel.innerHTML = '<option value="">Select Expiry</option>' + exps.map(e=>`<option value="${e}">${EXP_LBL[e]||e}</option>`).join('');
   expSel.onchange = () => updatePortfolioStrikes();
+  // Set default F for stress test
+  if(!document.getElementById('stress-F').value && futPrices[exps[0]]){
+    document.getElementById('stress-F').value = futPrices[exps[0]].toFixed(2);
+  }
 }
 
 function updatePortfolioStrikes(){
@@ -604,22 +648,22 @@ function addPortfolioLeg(){
 
   portfolioLegs.push({exp, strike, cp, side, lots, premium});
   renderPortfolioLegs();
-  calcPortfolioGreeks();
+  renderPortfolioTable();
   runStressTest();
 }
 
 function removePortfolioLeg(idx){
   portfolioLegs.splice(idx, 1);
   renderPortfolioLegs();
-  calcPortfolioGreeks();
+  renderPortfolioTable();
   runStressTest();
 }
 
 function renderPortfolioLegs(){
   const el = document.getElementById('port-legs-list');
-  if(!portfolioLegs.length){el.innerHTML='<span style="font-size:9px;color:var(--text3)">No legs added yet.</span>';return;}
+  if(!portfolioLegs.length){el.innerHTML='<span style="font-size:10px;color:var(--text3)">No legs added yet.</span>';return;}
   el.innerHTML = portfolioLegs.map((leg,i)=>`
-    <div style="display:flex;gap:8px;align-items:center;background:var(--bg3);border:0.5px solid var(--border);border-radius:3px;padding:4px 8px;font-size:9px">
+    <div style="display:flex;gap:8px;align-items:center;background:var(--bg3);border:0.5px solid var(--border);border-radius:3px;padding:4px 8px;font-size:10px">
       <span style="color:var(--atm)">${EXP_LBL[leg.exp]||leg.exp}</span>
       <span style="color:var(--text)">${leg.strike}</span>
       <span style="color:${leg.cp==='C'?'var(--call)':'var(--put)'}">${leg.cp==='C'?'Call':'Put'}</span>
@@ -631,18 +675,21 @@ function renderPortfolioLegs(){
   `).join('');
 }
 
-function calcPortfolioGreeks(){
+function renderPortfolioTable(){
   if(!latestDate || !portfolioLegs.length){
-    document.getElementById('port-delta').textContent='—';
-    document.getElementById('port-gamma').textContent='—';
-    document.getElementById('port-theta').textContent='—';
-    document.getElementById('port-vega').textContent='—';
-    document.getElementById('port-notional').textContent='—';
+    document.getElementById('port-table').innerHTML='<div class="empty" style="padding:20px">Add portfolio legs to see details.</div>';
     return;
   }
 
   const dd = days[latestDate];
-  let totalDelta = 0, totalGamma = 0, totalTheta = 0, totalVega = 0, totalPremium = 0;
+  const contractSize = getComm().contractSize || 50000;
+
+  let h = '<table class="rtbl" style="font-size:9px"><thead><tr>';
+  h += '<th>Expiry</th><th>Side</th><th>Lots</th><th>C/P</th><th>Strike</th><th>Premium</th>';
+  h += '<th>Mark</th><th>IV%</th><th>Delta</th><th>Gamma</th><th>Theta</th><th>Vega</th><th>P&L</th>';
+  h += '</tr></thead><tbody>';
+
+  let totalDelta = 0, totalGamma = 0, totalTheta = 0, totalVega = 0, totalPL = 0;
 
   portfolioLegs.forEach(leg => {
     const F = getFutPrice(leg.exp, latestDate) || futPrices[leg.exp];
@@ -651,28 +698,50 @@ function calcPortfolioGreeks(){
     const isCall = leg.cp === 'C';
     const g = b76Greeks(F, leg.strike, T, R, iv, isCall);
     const mult = leg.side === 'long' ? 1 : -1;
-    const contractSize = getComm().contractSize || 50000;
 
-    // Delta lots = delta * lots * contract_size / 100 (for cents to dollars)
-    totalDelta += g.delta * leg.lots * mult;
-    totalGamma += g.gamma * leg.lots * mult;
-    // Theta in $/day per contract = theta * contract_size / 100
-    totalTheta += g.theta * leg.lots * mult * contractSize / 100;
-    // Vega in $ per 1% IV move = vega * contract_size / 100
-    totalVega += g.vega * leg.lots * mult * contractSize / 100;
-    totalPremium += leg.premium * leg.lots * mult * contractSize / 100;
+    const mark = g.price;
+    const pl = (mark - leg.premium) * leg.lots * mult * contractSize / 100;
+    const deltaLots = g.delta * leg.lots * mult;
+    const gammaLots = g.gamma * leg.lots * mult;
+    const thetaUSD = g.theta * leg.lots * mult * contractSize / 100;
+    const vegaUSD = g.vega * leg.lots * mult * contractSize / 100;
+
+    totalDelta += deltaLots;
+    totalGamma += gammaLots;
+    totalTheta += thetaUSD;
+    totalVega += vegaUSD;
+    totalPL += pl;
+
+    h += `<tr><td style="color:var(--atm)">${EXP_LBL[leg.exp]||leg.exp}</td>`;
+    h += `<td style="color:${leg.side==='long'?'var(--pos)':'var(--neg)'}">${leg.side.toUpperCase()}</td>`;
+    h += `<td>${leg.lots}</td><td style="color:${leg.cp==='C'?'var(--call)':'var(--put)'}">${leg.cp}</td>`;
+    h += `<td>${leg.strike}</td><td>${leg.premium.toFixed(2)}</td>`;
+    h += `<td>${mark.toFixed(2)}</td>`;
+    h += `<td class="iv-${iv*100>30?'r':iv*100>22?'a':'g'}">${(iv*100).toFixed(1)}%</td>`;
+    h += `<td>${deltaLots.toFixed(2)}</td>`;
+    h += `<td>${gammaLots.toFixed(4)}</td>`;
+    h += `<td>${thetaUSD.toFixed(2)}</td>`;
+    h += `<td>${vegaUSD.toFixed(2)}</td>`;
+    h += `<td class="${pl>=0?'pos':'neg'}">${pl>=0?'+':''}${pl.toFixed(2)}</td></tr>`;
   });
 
-  document.getElementById('port-delta').textContent = totalDelta.toFixed(2);
-  document.getElementById('port-gamma').textContent = totalGamma.toFixed(4);
-  document.getElementById('port-theta').textContent = totalTheta.toFixed(2);
-  document.getElementById('port-vega').textContent = totalVega.toFixed(2);
-  document.getElementById('port-notional').textContent = totalPremium.toFixed(2);
+  // Total row
+  h += `<tr style="border-top:2px solid var(--border);font-weight:700;background:rgba(88,166,255,.08)">`;
+  h += `<td colspan="7">PORTFOLIO TOTAL</td>`;
+  h += `<td>—</td>`;
+  h += `<td>${totalDelta.toFixed(2)}</td>`;
+  h += `<td>${totalGamma.toFixed(4)}</td>`;
+  h += `<td>${totalTheta.toFixed(2)}</td>`;
+  h += `<td>${totalVega.toFixed(2)}</td>`;
+  h += `<td class="${totalPL>=0?'pos':'neg'}">${totalPL>=0?'+':''}${totalPL.toFixed(2)}</td></tr>`;
+  h += '</tbody></table>';
+
+  document.getElementById('port-table').innerHTML = h;
 }
 
 function runStressTest(){
   if(!latestDate || !portfolioLegs.length){
-    document.getElementById('stress-results').innerHTML='<div class="empty" style="padding:20px">Add portfolio legs and set stress parameters.</div>';
+    document.getElementById('stress-results').innerHTML='<div class="empty" style="padding:20px">Add legs and click CALCULATE to see P&L impact.</div>';
     return;
   }
 
@@ -681,65 +750,76 @@ function runStressTest(){
   const ivChg = parseFloat(document.getElementById('stress-ivchg').value) || 0;
 
   const dd = days[latestDate];
-  let currentValue = 0, stressedValue = 0;
+  const contractSize = getComm().contractSize || 50000;
 
+  // Calculate current portfolio value
+  let currentValue = 0;
   portfolioLegs.forEach(leg => {
-    const contractSize = getComm().contractSize || 50000;
     const mult = leg.side === 'long' ? 1 : -1;
-
-    // Current value
-    const ivCurrent = avgIV(leg.exp, leg.strike, dd, latestDate) || 0.2;
-    const Tcurrent = getT(leg.exp, latestDate);
-    const Fcurrent = getFutPrice(leg.exp, latestDate) || futPrices[leg.exp];
-    const priceCurrent = b76Greeks(Fcurrent, leg.strike, Tcurrent, R, ivCurrent, leg.cp==='C').price;
-    currentValue += priceCurrent * leg.lots * mult * contractSize / 100;
-
-    // Stressed value
-    const ivStress = Math.max(0.01, ivCurrent + ivChg/100);
-    const Tstress = Math.max(1/365, Tcurrent - daysFwd/365);
-    const priceStress = b76Greeks(F, leg.strike, Tstress, R, ivStress, leg.cp==='C').price;
-    stressedValue += priceStress * leg.lots * mult * contractSize / 100;
+    currentValue += leg.premium * leg.lots * mult * contractSize / 100;
   });
 
-  const pnl = stressedValue - currentValue;
-  const pnlPct = currentValue !== 0 ? (pnl / Math.abs(currentValue) * 100).toFixed(2) + '%' : '—';
-
-  // Build results table
+  // Build stress table: each scenario
   let h = '<table class="rtbl" style="font-size:9px"><thead><tr>';
-  h += '<th>Leg</th><th>Current $</th><th>Stressed $</th><th>P&L $</th><th>P&L %</th>';
+  h += '<th>Expiry</th><th>Side</th><th>Lots</th><th>C/P</th><th>Strike</th><th>Premium</th>';
+  h += '<th>Price Chg</th><th>IV Chg</th><th>Days</th><th>Stressed P&L</th><th>Price Effect</th><th>IV Effect</th><th>Time Effect</th><th>Combined</th>';
   h += '</tr></thead><tbody>';
 
-  portfolioLegs.forEach((leg, i) => {
-    const contractSize = getComm().contractSize || 50000;
+  let totalStressed = 0, totalPriceEff = 0, totalIVEff = 0, totalTimeEff = 0, totalCombined = 0;
+
+  portfolioLegs.forEach(leg => {
+    const Fbase = getFutPrice(leg.exp, latestDate) || futPrices[leg.exp];
+    const Tbase = getT(leg.exp, latestDate);
+    const ivBase = avgIV(leg.exp, leg.strike, dd, latestDate) || 0.2;
+    const isCall = leg.cp === 'C';
     const mult = leg.side === 'long' ? 1 : -1;
 
-    const ivCurrent = avgIV(leg.exp, leg.strike, dd, latestDate) || 0.2;
-    const Tcurrent = getT(leg.exp, latestDate);
-    const Fcurrent = getFutPrice(leg.exp, latestDate) || futPrices[leg.exp];
-    const priceCurrent = b76Greeks(Fcurrent, leg.strike, Tcurrent, R, ivCurrent, leg.cp==='C').price;
-    const valCurrent = priceCurrent * leg.lots * mult * contractSize / 100;
+    const basePrice = b76Greeks(Fbase, leg.strike, Tbase, R, ivBase, isCall).price;
+    const baseValue = basePrice * leg.lots * mult * contractSize / 100;
 
-    const ivStress = Math.max(0.01, ivCurrent + ivChg/100);
-    const Tstress = Math.max(1/365, Tcurrent - daysFwd/365);
-    const priceStress = b76Greeks(F, leg.strike, Tstress, R, ivStress, leg.cp==='C').price;
-    const valStress = priceStress * leg.lots * mult * contractSize / 100;
+    // Stressed parameters
+    const Fstress = F;
+    const Tstress = Math.max(1/365, Tbase - daysFwd/365);
+    const ivStress = Math.max(0.01, ivBase + ivChg/100);
 
-    const legPnl = valStress - valCurrent;
-    const legPnlPct = valCurrent !== 0 ? (legPnl / Math.abs(valCurrent) * 100).toFixed(1) + '%' : '—';
+    // Individual effects
+    const priceOnly = b76Greeks(Fstress, leg.strike, Tbase, R, ivBase, isCall).price;
+    const ivOnly = b76Greeks(Fbase, leg.strike, Tbase, R, ivStress, isCall).price;
+    const timeOnly = b76Greeks(Fbase, leg.strike, Tstress, R, ivBase, isCall).price;
+    const combined = b76Greeks(Fstress, leg.strike, Tstress, R, ivStress, isCall).price;
 
-    h += `<tr><td>${EXP_LBL[leg.exp]||leg.exp} ${leg.strike}${leg.cp} ${leg.side} ${leg.lots}lot</td>`;
-    h += `<td>${valCurrent.toFixed(2)}</td>`;
-    h += `<td>${valStress.toFixed(2)}</td>`;
-    h += `<td class="${legPnl>=0?'pos':'neg'}">${legPnl>=0?'+':''}${legPnl.toFixed(2)}</td>`;
-    h += `<td class="${legPnl>=0?'pos':'neg'}">${legPnlPct}</td></tr>`;
+    const priceEff = (priceOnly - basePrice) * leg.lots * mult * contractSize / 100;
+    const ivEff = (ivOnly - basePrice) * leg.lots * mult * contractSize / 100;
+    const timeEff = (timeOnly - basePrice) * leg.lots * mult * contractSize / 100;
+    const combinedEff = (combined - basePrice) * leg.lots * mult * contractSize / 100;
+    const stressedPL = (combined - leg.premium) * leg.lots * mult * contractSize / 100;
+
+    totalStressed += stressedPL;
+    totalPriceEff += priceEff;
+    totalIVEff += ivEff;
+    totalTimeEff += timeEff;
+    totalCombined += combinedEff;
+
+    h += `<tr><td style="color:var(--atm)">${EXP_LBL[leg.exp]||leg.exp}</td>`;
+    h += `<td style="color:${leg.side==='long'?'var(--pos)':'var(--neg)'}">${leg.side.toUpperCase()}</td>`;
+    h += `<td>${leg.lots}</td><td style="color:${leg.cp==='C'?'var(--call)':'var(--put)'}">${leg.cp}</td>`;
+    h += `<td>${leg.strike}</td><td>${leg.premium.toFixed(2)}</td>`;
+    h += `<td>${Fstress.toFixed(2)}</td><td>${ivChg>0?'+':''}${ivChg.toFixed(1)}pp</td><td>${daysFwd}d</td>`;
+    h += `<td class="${stressedPL>=0?'pos':'neg'}">${stressedPL>=0?'+':''}${stressedPL.toFixed(2)}</td>`;
+    h += `<td class="${priceEff>=0?'pos':'neg'}">${priceEff>=0?'+':''}${priceEff.toFixed(2)}</td>`;
+    h += `<td class="${ivEff>=0?'pos':'neg'}">${ivEff>=0?'+':''}${ivEff.toFixed(2)}</td>`;
+    h += `<td class="${timeEff>=0?'pos':'neg'}">${timeEff>=0?'+':''}${timeEff.toFixed(2)}</td>`;
+    h += `<td class="${combinedEff>=0?'pos':'neg'}">${combinedEff>=0?'+':''}${combinedEff.toFixed(2)}</td></tr>`;
   });
 
-  h += `<tr style="border-top:2px solid var(--border);font-weight:700">`;
-  h += `<td>PORTFOLIO TOTAL</td>`;
-  h += `<td>${currentValue.toFixed(2)}</td>`;
-  h += `<td>${stressedValue.toFixed(2)}</td>`;
-  h += `<td class="${pnl>=0?'pos':'neg'}">${pnl>=0?'+':''}${pnl.toFixed(2)}</td>`;
-  h += `<td class="${pnl>=0?'pos':'neg'}">${pnlPct}</td></tr>`;
+  // Total row
+  h += `<tr style="border-top:2px solid var(--border);font-weight:700;background:rgba(88,166,255,.08)">`;
+  h += `<td colspan="8">PORTFOLIO TOTAL</td>`;
+  h += `<td class="${totalStressed>=0?'pos':'neg'}">${totalStressed>=0?'+':''}${totalStressed.toFixed(2)}</td>`;
+  h += `<td class="${totalPriceEff>=0?'pos':'neg'}">${totalPriceEff>=0?'+':''}${totalPriceEff.toFixed(2)}</td>`;
+  h += `<td class="${totalIVEff>=0?'pos':'neg'}">${totalIVEff>=0?'+':''}${totalIVEff.toFixed(2)}</td>`;
+  h += `<td class="${totalTimeEff>=0?'pos':'neg'}">${totalTimeEff>=0?'+':''}${totalTimeEff.toFixed(2)}</td>`;
+  h += `<td class="${totalCombined>=0?'pos':'neg'}">${totalCombined>=0?'+':''}${totalCombined.toFixed(2)}</td></tr>`;
   h += '</tbody></table>';
 
   document.getElementById('stress-results').innerHTML = h;
@@ -3949,6 +4029,10 @@ function initPortfolio(){
   const expSel = document.getElementById('port-exp');
   expSel.innerHTML = '<option value="">Select Expiry</option>' + exps.map(e=>`<option value="${e}">${EXP_LBL[e]||e}</option>`).join('');
   expSel.onchange = () => updatePortfolioStrikes();
+  // Set default F for stress test
+  if(!document.getElementById('stress-F').value && futPrices[exps[0]]){
+    document.getElementById('stress-F').value = futPrices[exps[0]].toFixed(2);
+  }
 }
 
 function updatePortfolioStrikes(){
@@ -3972,22 +4056,22 @@ function addPortfolioLeg(){
 
   portfolioLegs.push({exp, strike, cp, side, lots, premium});
   renderPortfolioLegs();
-  calcPortfolioGreeks();
+  renderPortfolioTable();
   runStressTest();
 }
 
 function removePortfolioLeg(idx){
   portfolioLegs.splice(idx, 1);
   renderPortfolioLegs();
-  calcPortfolioGreeks();
+  renderPortfolioTable();
   runStressTest();
 }
 
 function renderPortfolioLegs(){
   const el = document.getElementById('port-legs-list');
-  if(!portfolioLegs.length){el.innerHTML='<span style="font-size:9px;color:var(--text3)">No legs added yet.</span>';return;}
+  if(!portfolioLegs.length){el.innerHTML='<span style="font-size:10px;color:var(--text3)">No legs added yet.</span>';return;}
   el.innerHTML = portfolioLegs.map((leg,i)=>`
-    <div style="display:flex;gap:8px;align-items:center;background:var(--bg3);border:0.5px solid var(--border);border-radius:3px;padding:4px 8px;font-size:9px">
+    <div style="display:flex;gap:8px;align-items:center;background:var(--bg3);border:0.5px solid var(--border);border-radius:3px;padding:4px 8px;font-size:10px">
       <span style="color:var(--atm)">${EXP_LBL[leg.exp]||leg.exp}</span>
       <span style="color:var(--text)">${leg.strike}</span>
       <span style="color:${leg.cp==='C'?'var(--call)':'var(--put)'}">${leg.cp==='C'?'Call':'Put'}</span>
@@ -3999,18 +4083,21 @@ function renderPortfolioLegs(){
   `).join('');
 }
 
-function calcPortfolioGreeks(){
+function renderPortfolioTable(){
   if(!latestDate || !portfolioLegs.length){
-    document.getElementById('port-delta').textContent='—';
-    document.getElementById('port-gamma').textContent='—';
-    document.getElementById('port-theta').textContent='—';
-    document.getElementById('port-vega').textContent='—';
-    document.getElementById('port-notional').textContent='—';
+    document.getElementById('port-table').innerHTML='<div class="empty" style="padding:20px">Add portfolio legs to see details.</div>';
     return;
   }
 
   const dd = days[latestDate];
-  let totalDelta = 0, totalGamma = 0, totalTheta = 0, totalVega = 0, totalPremium = 0;
+  const contractSize = getComm().contractSize || 50000;
+
+  let h = '<table class="rtbl" style="font-size:9px"><thead><tr>';
+  h += '<th>Expiry</th><th>Side</th><th>Lots</th><th>C/P</th><th>Strike</th><th>Premium</th>';
+  h += '<th>Mark</th><th>IV%</th><th>Delta</th><th>Gamma</th><th>Theta</th><th>Vega</th><th>P&L</th>';
+  h += '</tr></thead><tbody>';
+
+  let totalDelta = 0, totalGamma = 0, totalTheta = 0, totalVega = 0, totalPL = 0;
 
   portfolioLegs.forEach(leg => {
     const F = getFutPrice(leg.exp, latestDate) || futPrices[leg.exp];
@@ -4019,28 +4106,50 @@ function calcPortfolioGreeks(){
     const isCall = leg.cp === 'C';
     const g = b76Greeks(F, leg.strike, T, R, iv, isCall);
     const mult = leg.side === 'long' ? 1 : -1;
-    const contractSize = getComm().contractSize || 50000;
 
-    // Delta lots = delta * lots * contract_size / 100 (for cents to dollars)
-    totalDelta += g.delta * leg.lots * mult;
-    totalGamma += g.gamma * leg.lots * mult;
-    // Theta in $/day per contract = theta * contract_size / 100
-    totalTheta += g.theta * leg.lots * mult * contractSize / 100;
-    // Vega in $ per 1% IV move = vega * contract_size / 100
-    totalVega += g.vega * leg.lots * mult * contractSize / 100;
-    totalPremium += leg.premium * leg.lots * mult * contractSize / 100;
+    const mark = g.price;
+    const pl = (mark - leg.premium) * leg.lots * mult * contractSize / 100;
+    const deltaLots = g.delta * leg.lots * mult;
+    const gammaLots = g.gamma * leg.lots * mult;
+    const thetaUSD = g.theta * leg.lots * mult * contractSize / 100;
+    const vegaUSD = g.vega * leg.lots * mult * contractSize / 100;
+
+    totalDelta += deltaLots;
+    totalGamma += gammaLots;
+    totalTheta += thetaUSD;
+    totalVega += vegaUSD;
+    totalPL += pl;
+
+    h += `<tr><td style="color:var(--atm)">${EXP_LBL[leg.exp]||leg.exp}</td>`;
+    h += `<td style="color:${leg.side==='long'?'var(--pos)':'var(--neg)'}">${leg.side.toUpperCase()}</td>`;
+    h += `<td>${leg.lots}</td><td style="color:${leg.cp==='C'?'var(--call)':'var(--put)'}">${leg.cp}</td>`;
+    h += `<td>${leg.strike}</td><td>${leg.premium.toFixed(2)}</td>`;
+    h += `<td>${mark.toFixed(2)}</td>`;
+    h += `<td class="iv-${iv*100>30?'r':iv*100>22?'a':'g'}">${(iv*100).toFixed(1)}%</td>`;
+    h += `<td>${deltaLots.toFixed(2)}</td>`;
+    h += `<td>${gammaLots.toFixed(4)}</td>`;
+    h += `<td>${thetaUSD.toFixed(2)}</td>`;
+    h += `<td>${vegaUSD.toFixed(2)}</td>`;
+    h += `<td class="${pl>=0?'pos':'neg'}">${pl>=0?'+':''}${pl.toFixed(2)}</td></tr>`;
   });
 
-  document.getElementById('port-delta').textContent = totalDelta.toFixed(2);
-  document.getElementById('port-gamma').textContent = totalGamma.toFixed(4);
-  document.getElementById('port-theta').textContent = totalTheta.toFixed(2);
-  document.getElementById('port-vega').textContent = totalVega.toFixed(2);
-  document.getElementById('port-notional').textContent = totalPremium.toFixed(2);
+  // Total row
+  h += `<tr style="border-top:2px solid var(--border);font-weight:700;background:rgba(88,166,255,.08)">`;
+  h += `<td colspan="7">PORTFOLIO TOTAL</td>`;
+  h += `<td>—</td>`;
+  h += `<td>${totalDelta.toFixed(2)}</td>`;
+  h += `<td>${totalGamma.toFixed(4)}</td>`;
+  h += `<td>${totalTheta.toFixed(2)}</td>`;
+  h += `<td>${totalVega.toFixed(2)}</td>`;
+  h += `<td class="${totalPL>=0?'pos':'neg'}">${totalPL>=0?'+':''}${totalPL.toFixed(2)}</td></tr>`;
+  h += '</tbody></table>';
+
+  document.getElementById('port-table').innerHTML = h;
 }
 
 function runStressTest(){
   if(!latestDate || !portfolioLegs.length){
-    document.getElementById('stress-results').innerHTML='<div class="empty" style="padding:20px">Add portfolio legs and set stress parameters.</div>';
+    document.getElementById('stress-results').innerHTML='<div class="empty" style="padding:20px">Add legs and click CALCULATE to see P&L impact.</div>';
     return;
   }
 
@@ -4049,65 +4158,76 @@ function runStressTest(){
   const ivChg = parseFloat(document.getElementById('stress-ivchg').value) || 0;
 
   const dd = days[latestDate];
-  let currentValue = 0, stressedValue = 0;
+  const contractSize = getComm().contractSize || 50000;
 
+  // Calculate current portfolio value
+  let currentValue = 0;
   portfolioLegs.forEach(leg => {
-    const contractSize = getComm().contractSize || 50000;
     const mult = leg.side === 'long' ? 1 : -1;
-
-    // Current value
-    const ivCurrent = avgIV(leg.exp, leg.strike, dd, latestDate) || 0.2;
-    const Tcurrent = getT(leg.exp, latestDate);
-    const Fcurrent = getFutPrice(leg.exp, latestDate) || futPrices[leg.exp];
-    const priceCurrent = b76Greeks(Fcurrent, leg.strike, Tcurrent, R, ivCurrent, leg.cp==='C').price;
-    currentValue += priceCurrent * leg.lots * mult * contractSize / 100;
-
-    // Stressed value
-    const ivStress = Math.max(0.01, ivCurrent + ivChg/100);
-    const Tstress = Math.max(1/365, Tcurrent - daysFwd/365);
-    const priceStress = b76Greeks(F, leg.strike, Tstress, R, ivStress, leg.cp==='C').price;
-    stressedValue += priceStress * leg.lots * mult * contractSize / 100;
+    currentValue += leg.premium * leg.lots * mult * contractSize / 100;
   });
 
-  const pnl = stressedValue - currentValue;
-  const pnlPct = currentValue !== 0 ? (pnl / Math.abs(currentValue) * 100).toFixed(2) + '%' : '—';
-
-  // Build results table
+  // Build stress table: each scenario
   let h = '<table class="rtbl" style="font-size:9px"><thead><tr>';
-  h += '<th>Leg</th><th>Current $</th><th>Stressed $</th><th>P&L $</th><th>P&L %</th>';
+  h += '<th>Expiry</th><th>Side</th><th>Lots</th><th>C/P</th><th>Strike</th><th>Premium</th>';
+  h += '<th>Price Chg</th><th>IV Chg</th><th>Days</th><th>Stressed P&L</th><th>Price Effect</th><th>IV Effect</th><th>Time Effect</th><th>Combined</th>';
   h += '</tr></thead><tbody>';
 
-  portfolioLegs.forEach((leg, i) => {
-    const contractSize = getComm().contractSize || 50000;
+  let totalStressed = 0, totalPriceEff = 0, totalIVEff = 0, totalTimeEff = 0, totalCombined = 0;
+
+  portfolioLegs.forEach(leg => {
+    const Fbase = getFutPrice(leg.exp, latestDate) || futPrices[leg.exp];
+    const Tbase = getT(leg.exp, latestDate);
+    const ivBase = avgIV(leg.exp, leg.strike, dd, latestDate) || 0.2;
+    const isCall = leg.cp === 'C';
     const mult = leg.side === 'long' ? 1 : -1;
 
-    const ivCurrent = avgIV(leg.exp, leg.strike, dd, latestDate) || 0.2;
-    const Tcurrent = getT(leg.exp, latestDate);
-    const Fcurrent = getFutPrice(leg.exp, latestDate) || futPrices[leg.exp];
-    const priceCurrent = b76Greeks(Fcurrent, leg.strike, Tcurrent, R, ivCurrent, leg.cp==='C').price;
-    const valCurrent = priceCurrent * leg.lots * mult * contractSize / 100;
+    const basePrice = b76Greeks(Fbase, leg.strike, Tbase, R, ivBase, isCall).price;
+    const baseValue = basePrice * leg.lots * mult * contractSize / 100;
 
-    const ivStress = Math.max(0.01, ivCurrent + ivChg/100);
-    const Tstress = Math.max(1/365, Tcurrent - daysFwd/365);
-    const priceStress = b76Greeks(F, leg.strike, Tstress, R, ivStress, leg.cp==='C').price;
-    const valStress = priceStress * leg.lots * mult * contractSize / 100;
+    // Stressed parameters
+    const Fstress = F;
+    const Tstress = Math.max(1/365, Tbase - daysFwd/365);
+    const ivStress = Math.max(0.01, ivBase + ivChg/100);
 
-    const legPnl = valStress - valCurrent;
-    const legPnlPct = valCurrent !== 0 ? (legPnl / Math.abs(valCurrent) * 100).toFixed(1) + '%' : '—';
+    // Individual effects
+    const priceOnly = b76Greeks(Fstress, leg.strike, Tbase, R, ivBase, isCall).price;
+    const ivOnly = b76Greeks(Fbase, leg.strike, Tbase, R, ivStress, isCall).price;
+    const timeOnly = b76Greeks(Fbase, leg.strike, Tstress, R, ivBase, isCall).price;
+    const combined = b76Greeks(Fstress, leg.strike, Tstress, R, ivStress, isCall).price;
 
-    h += `<tr><td>${EXP_LBL[leg.exp]||leg.exp} ${leg.strike}${leg.cp} ${leg.side} ${leg.lots}lot</td>`;
-    h += `<td>${valCurrent.toFixed(2)}</td>`;
-    h += `<td>${valStress.toFixed(2)}</td>`;
-    h += `<td class="${legPnl>=0?'pos':'neg'}">${legPnl>=0?'+':''}${legPnl.toFixed(2)}</td>`;
-    h += `<td class="${legPnl>=0?'pos':'neg'}">${legPnlPct}</td></tr>`;
+    const priceEff = (priceOnly - basePrice) * leg.lots * mult * contractSize / 100;
+    const ivEff = (ivOnly - basePrice) * leg.lots * mult * contractSize / 100;
+    const timeEff = (timeOnly - basePrice) * leg.lots * mult * contractSize / 100;
+    const combinedEff = (combined - basePrice) * leg.lots * mult * contractSize / 100;
+    const stressedPL = (combined - leg.premium) * leg.lots * mult * contractSize / 100;
+
+    totalStressed += stressedPL;
+    totalPriceEff += priceEff;
+    totalIVEff += ivEff;
+    totalTimeEff += timeEff;
+    totalCombined += combinedEff;
+
+    h += `<tr><td style="color:var(--atm)">${EXP_LBL[leg.exp]||leg.exp}</td>`;
+    h += `<td style="color:${leg.side==='long'?'var(--pos)':'var(--neg)'}">${leg.side.toUpperCase()}</td>`;
+    h += `<td>${leg.lots}</td><td style="color:${leg.cp==='C'?'var(--call)':'var(--put)'}">${leg.cp}</td>`;
+    h += `<td>${leg.strike}</td><td>${leg.premium.toFixed(2)}</td>`;
+    h += `<td>${Fstress.toFixed(2)}</td><td>${ivChg>0?'+':''}${ivChg.toFixed(1)}pp</td><td>${daysFwd}d</td>`;
+    h += `<td class="${stressedPL>=0?'pos':'neg'}">${stressedPL>=0?'+':''}${stressedPL.toFixed(2)}</td>`;
+    h += `<td class="${priceEff>=0?'pos':'neg'}">${priceEff>=0?'+':''}${priceEff.toFixed(2)}</td>`;
+    h += `<td class="${ivEff>=0?'pos':'neg'}">${ivEff>=0?'+':''}${ivEff.toFixed(2)}</td>`;
+    h += `<td class="${timeEff>=0?'pos':'neg'}">${timeEff>=0?'+':''}${timeEff.toFixed(2)}</td>`;
+    h += `<td class="${combinedEff>=0?'pos':'neg'}">${combinedEff>=0?'+':''}${combinedEff.toFixed(2)}</td></tr>`;
   });
 
-  h += `<tr style="border-top:2px solid var(--border);font-weight:700">`;
-  h += `<td>PORTFOLIO TOTAL</td>`;
-  h += `<td>${currentValue.toFixed(2)}</td>`;
-  h += `<td>${stressedValue.toFixed(2)}</td>`;
-  h += `<td class="${pnl>=0?'pos':'neg'}">${pnl>=0?'+':''}${pnl.toFixed(2)}</td>`;
-  h += `<td class="${pnl>=0?'pos':'neg'}">${pnlPct}</td></tr>`;
+  // Total row
+  h += `<tr style="border-top:2px solid var(--border);font-weight:700;background:rgba(88,166,255,.08)">`;
+  h += `<td colspan="8">PORTFOLIO TOTAL</td>`;
+  h += `<td class="${totalStressed>=0?'pos':'neg'}">${totalStressed>=0?'+':''}${totalStressed.toFixed(2)}</td>`;
+  h += `<td class="${totalPriceEff>=0?'pos':'neg'}">${totalPriceEff>=0?'+':''}${totalPriceEff.toFixed(2)}</td>`;
+  h += `<td class="${totalIVEff>=0?'pos':'neg'}">${totalIVEff>=0?'+':''}${totalIVEff.toFixed(2)}</td>`;
+  h += `<td class="${totalTimeEff>=0?'pos':'neg'}">${totalTimeEff>=0?'+':''}${totalTimeEff.toFixed(2)}</td>`;
+  h += `<td class="${totalCombined>=0?'pos':'neg'}">${totalCombined>=0?'+':''}${totalCombined.toFixed(2)}</td></tr>`;
   h += '</tbody></table>';
 
   document.getElementById('stress-results').innerHTML = h;
