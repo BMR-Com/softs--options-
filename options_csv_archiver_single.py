@@ -551,7 +551,7 @@ def main():
     parser.add_argument('--pdf-dir', help='Directory with PDF pairs')
     parser.add_argument('--output-dir', help='Output directory')
     parser.add_argument('--master-csv', help='Path to master CSV file')
-    parser.add_argument('--ticker', default='CT', choices=['CT','KC','SB'])
+    parser.add_argument('--ticker', default=None, choices=['CT','KC','SB'])
     parser.add_argument('--stats', action='store_true', help='Show stats for master CSV')
     parser.add_argument('--cleanup', action='store_true', help='Remove PDFs older than 7 days after processing')
     parser.add_argument('--cleanup-days', type=int, default=7, help='Days to keep PDFs before cleanup (default: 7)')
