@@ -2,7 +2,8 @@ name: Daily Options CSV Archive
 
 on:
   schedule:
-    - cron: '0 21 * * 1-5'  # 4:00 PM EST
+    # Run at 4:00 PM EST (after market close)
+    - cron: '0 21 * * 1-5'  # 21:00 UTC = 4:00 PM EST/EDT
   workflow_dispatch:
     inputs:
       ticker:
@@ -77,36 +78,27 @@ jobs:
           RAW_CLEANUP_DAYS='${{ github.event.inputs.cleanup_days }}'
           CLEANUP_DAYS=$(echo "$RAW_CLEANUP_DAYS" | sed 's/^"//;s/"$//')
 
-          echo "Ticker: [$TICKER]"
-          echo "Cleanup: [$CLEANUP]"
-          echo "Cleanup days: [$CLEANUP_DAYS]"
+          echo "Ticker=[$TICKER]"
+          echo "Cleanup=[$CLEANUP]"
+          echo "CleanupDays=[$CLEANUP_DAYS]"
+          echo "Event=${{ github.event_name }}"
 
           export PYTHONUNBUFFERED=1
-          if [ -n "$TICKER" ]; then
+
+          # For scheduled runs OR when ticker is empty, process ALL commodities
+          if [ -n "$TICKER" ] && [ "$TICKER" != "" ]; then
+            echo "Processing single commodity: $TICKER"
             if [ "$CLEANUP" = "true" ]; then
-              python options_csv_archiver_single.py \
-                --pdf-dir ${{ env.PDF_DIR }} \
-                --output-dir ${{ env.CSV_DIR }} \
-                --ticker "$TICKER" \
-                --cleanup \
-                --cleanup-days "$CLEANUP_DAYS"
+              python options_csv_archiver_single.py                 --pdf-dir ${{ env.PDF_DIR }}                 --output-dir ${{ env.CSV_DIR }}                 --ticker "$TICKER"                 --cleanup                 --cleanup-days "$CLEANUP_DAYS"
             else
-              python options_csv_archiver_single.py \
-                --pdf-dir ${{ env.PDF_DIR }} \
-                --output-dir ${{ env.CSV_DIR }} \
-                --ticker "$TICKER"
+              python options_csv_archiver_single.py                 --pdf-dir ${{ env.PDF_DIR }}                 --output-dir ${{ env.CSV_DIR }}                 --ticker "$TICKER"
             fi
           else
+            echo "Processing ALL commodities (CT, KC, SB)"
             if [ "$CLEANUP" = "true" ]; then
-              python options_csv_archiver_single.py \
-                --pdf-dir ${{ env.PDF_DIR }} \
-                --output-dir ${{ env.CSV_DIR }} \
-                --cleanup \
-                --cleanup-days "$CLEANUP_DAYS"
+              python options_csv_archiver_single.py                 --pdf-dir ${{ env.PDF_DIR }}                 --output-dir ${{ env.CSV_DIR }}                 --cleanup                 --cleanup-days "$CLEANUP_DAYS"
             else
-              python options_csv_archiver_single.py \
-                --pdf-dir ${{ env.PDF_DIR }} \
-                --output-dir ${{ env.CSV_DIR }}
+              python options_csv_archiver_single.py                 --pdf-dir ${{ env.PDF_DIR }}                 --output-dir ${{ env.CSV_DIR }}
             fi
           fi
 
