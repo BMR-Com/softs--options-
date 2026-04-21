@@ -505,8 +505,10 @@ tr.atm .sk{background:rgba(240,180,41,.22)!important;color:var(--atm)!important}
 <div class="sec" id="sec-oichanges">
   <div style="padding:10px 14px">
     <div style="display:flex;gap:10px;align-items:center;margin-bottom:10px;flex-wrap:wrap">
-      <span class="fp-lbl">Expiry:</span>
-      <select id="oic-exp" onchange="renderOIChanges()" style="background:var(--bg2);border:0.5px solid var(--border2);border-radius:4px;color:var(--atm);font-family:'Courier New',monospace;font-size:10px;font-weight:700;padding:3px 7px"></select>
+      <span class="fp-lbl">Expiry 1:</span>
+      <select id="oic-exp1" onchange="renderOIChanges()" style="background:var(--bg2);border:0.5px solid var(--border2);border-radius:4px;color:var(--atm);font-family:'Courier New',monospace;font-size:10px;font-weight:700;padding:3px 7px"></select>
+      <span class="fp-lbl">Expiry 2:</span>
+        <select id="oic-exp2" onchange="renderOIChanges()" style="background:var(--bg2);border:0.5px solid var(--border2);border-radius:4px;color:var(--atm);font-family:'Courier New',monospace;font-size:10px;font-weight:700;padding:3px 7px"><option value="">— Select —</option></select>
       <span class="fp-lbl">Min OI/Volume:</span>
       <input id="oic-min" type="number" value="1000" min="100" step="100" style="background:var(--bg2);border:0.5px solid var(--border2);border-radius:4px;color:var(--text);font-family:'Courier New',monospace;font-size:10px;padding:3px 7px;width:70px;text-align:right" onchange="renderOIChanges()">
       <span style="font-size:10px;color:var(--text3)">Strikes with OI or Volume ≥ threshold</span>
@@ -548,6 +550,14 @@ tr.atm .sk{background:rgba(240,180,41,.22)!important;color:var(--atm)!important}
     <!-- Portfolio Greeks Summary -->
     <div style="background:var(--bg2);border:0.5px solid var(--border);border-radius:6px;padding:10px;margin-bottom:10px">
       <div class="scard-title">Portfolio Greeks (Lots)</div>
+    <!-- Portfolio Greeks Table -->
+    <div style="background:var(--bg2);border:0.5px solid var(--border);border-radius:6px;padding:10px;margin-bottom:10px">
+      <div class="scard-title">Portfolio Greeks (Lots)</div>
+      <div id="port-table" style="overflow-x:auto;max-height:400px">
+        <div class="empty" style="padding:20px">Add portfolio legs to see details.</div>
+      </div>
+    </div>
+
       <div style="display:grid;grid-template-columns:repeat(5,1fr);gap:10px;font-size:9px">
         <div class="hs"><span class="hs-lbl">Delta Lots</span><span class="hs-val" id="port-delta">—</span></div>
         <div class="hs"><span class="hs-lbl">Gamma Lots</span><span class="hs-val" id="port-gamma">—</span></div>
