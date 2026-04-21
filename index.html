@@ -29,8 +29,8 @@ body{background:var(--bg);color:var(--text);font-family:'Courier New',monospace;
 .comm-tab:hover{color:var(--text)!important;background:var(--bg2)!important}
 .hstats{display:flex;gap:14px;flex-wrap:wrap;flex:1}
 .hs{display:flex;flex-direction:column;gap:1px}
-.hs-lbl{font-size:14px;color:var(--text3);text-transform:uppercase;letter-spacing:.07em}
-.hs-val{font-size:16px;font-weight:600}
+.hs-lbl{font-size:10px;color:var(--text3);text-transform:uppercase;letter-spacing:.07em}
+.hs-val{font-size:11px;font-weight:600}
 .hs-val.c{color:var(--call)}.hs-val.p{color:var(--put)}.hs-val.a{color:var(--atm)}.hs-val.g{color:var(--green)}
 
 /* UPLOAD PANEL */
@@ -38,15 +38,15 @@ body{background:var(--bg);color:var(--text);font-family:'Courier New',monospace;
 .upbox{border:1.5px dashed var(--border2);border-radius:6px;padding:10px 16px;cursor:pointer;text-align:center;transition:border-color .2s;min-width:190px}
 .upbox:hover{border-color:var(--blue)}
 .upbox input{display:none}
-.upbox-title{font-size:14px;color:var(--text2);margin-bottom:3px}
-.upbox-sub{font-size:14px;color:var(--text3)}
+.upbox-title{font-size:10px;color:var(--text2);margin-bottom:3px}
+.upbox-sub{font-size:10px;color:var(--text3)}
 .upbox.fut-box{border-color:rgba(240,180,41,.4)}
 .upbox.fut-box:hover{border-color:var(--amber)}
 .file-list{display:flex;flex-direction:column;gap:3px;flex:1;min-width:200px}
-.fi{display:flex;align-items:center;gap:6px;padding:3px 7px;background:var(--bg3);border-radius:4px;font-size:12px}
+.fi{display:flex;align-items:center;gap:6px;padding:3px 7px;background:var(--bg3);border-radius:4px;font-size:9px}
 .fi-date{color:var(--atm);font-weight:700;min-width:82px}
 .fi-name{color:var(--text2);flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
-.fi-badge{font-size:14px;padding:1px 5px;border-radius:3px;white-space:nowrap}
+.fi-badge{font-size:10px;padding:1px 5px;border-radius:3px;white-space:nowrap}
 .fi-badge.ok{background:rgba(63,185,80,.15);color:var(--green)}
 .fi-badge.err{background:rgba(248,81,73,.15);color:var(--red)}
 .fi-badge.load{background:rgba(88,166,255,.15);color:var(--blue)}
@@ -56,15 +56,15 @@ body{background:var(--bg);color:var(--text);font-family:'Courier New',monospace;
 
 /* FUTURES PRICE DISPLAY */
 .fprices{background:var(--bg3);border-bottom:1px solid var(--border);padding:5px 14px;display:none;gap:16px;flex-wrap:wrap;align-items:center}
-.fp-lbl{font-size:14px;color:var(--text3);text-transform:uppercase;letter-spacing:.06em}
-.fp-item{display:flex;align-items:center;gap:5px;font-size:14px}
+.fp-lbl{font-size:10px;color:var(--text3);text-transform:uppercase;letter-spacing:.06em}
+.fp-item{display:flex;align-items:center;gap:5px;font-size:10px}
 .fp-exp{color:var(--text2)}
 .fp-val{color:var(--atm);font-weight:700}
-.fp-chg{font-size:14px}
+.fp-chg{font-size:10px}
 
 /* MAIN TABS */
 .nav{display:flex;gap:0;border-bottom:1px solid var(--border);background:var(--bg2);padding:0 14px;overflow-x:auto}
-.nav-tab{padding:7px 13px;font-size:12px;cursor:pointer;color:var(--text2);border-bottom:2px solid transparent;letter-spacing:.06em;text-transform:uppercase;white-space:nowrap;transition:color .15s}
+.nav-tab{padding:7px 13px;font-size:9px;cursor:pointer;color:var(--text2);border-bottom:2px solid transparent;letter-spacing:.06em;text-transform:uppercase;white-space:nowrap;transition:color .15s}
 .nav-tab:hover{color:var(--text)}
 .nav-tab.on{color:var(--blue);border-bottom-color:var(--blue)}
 
@@ -74,24 +74,24 @@ body{background:var(--bg);color:var(--text);font-family:'Courier New',monospace;
 
 /* SUB-TABS */
 .stabs{display:flex;gap:4px;margin:0 4px 7px;flex-wrap:wrap;align-items:center}
-.stab{padding:3px 9px;font-size:14px;cursor:pointer;border:0.5px solid var(--border);border-radius:3px;color:var(--text2);background:transparent;font-family:'Courier New',monospace;letter-spacing:.05em;text-transform:uppercase;transition:all .15s}
+.stab{padding:3px 9px;font-size:10px;cursor:pointer;border:0.5px solid var(--border);border-radius:3px;color:var(--text2);background:transparent;font-family:'Courier New',monospace;letter-spacing:.05em;text-transform:uppercase;transition:all .15s}
 .stab:hover{border-color:var(--blue);color:var(--blue)}
 .stab.on{background:var(--bg3);border-color:var(--blue);color:var(--blue)}
 .stab-sep{width:1px;height:14px;background:var(--border);margin:0 2px;align-self:center}
-.stab-grp{font-size:12px;color:var(--text3);text-transform:uppercase;letter-spacing:.07em;align-self:center;margin:0 2px}
-.legend{display:flex;gap:12px;margin:0 4px 5px;font-size:14px;color:var(--text3);flex-wrap:wrap}
+.stab-grp{font-size:9px;color:var(--text3);text-transform:uppercase;letter-spacing:.07em;align-self:center;margin:0 2px}
+.legend{display:flex;gap:12px;margin:0 4px 5px;font-size:10px;color:var(--text3);flex-wrap:wrap}
 .leg{display:flex;align-items:center;gap:3px}
 .leg-sq{width:9px;height:9px;border-radius:1px}
-.matrix-desc{color:var(--text3);font-size:14px;margin-left:8px;font-style:italic}
+.matrix-desc{color:var(--text3);font-size:10px;margin-left:8px;font-style:italic}
 
 /* MATRIX TABLE */
 .mwrap{overflow:auto;max-height:68vh;margin:0 2px}
-table{border-collapse:collapse;font-size:12px;font-family:'Courier New',monospace}
-th{position:sticky;top:0;z-index:5;padding:3px 5px;font-size:12px;font-weight:700;letter-spacing:.07em;text-transform:uppercase;border:0.5px solid var(--border);white-space:nowrap;background:var(--bg3);color:var(--text3)}
-td{padding:1px 4px;border:0.5px solid #1c2128;text-align:right;min-width:44px;height:17px;color:var(--text);font-size:12px}
-.sk{background:var(--bg3)!important;font-weight:700;font-size:12px;text-align:center;position:sticky;left:0;z-index:2;min-width:44px;color:var(--text);border:0.5px solid var(--border)!important}
-.shc{background:rgba(79,142,247,.1);color:var(--call);font-size:12px;font-weight:700;letter-spacing:.1em;text-align:center;border:0.5px solid var(--border)}
-.shp{background:rgba(224,93,93,.1);color:var(--put);font-size:12px;font-weight:700;letter-spacing:.1em;text-align:center;border:0.5px solid var(--border)}
+table{border-collapse:collapse;font-size:9px;font-family:'Courier New',monospace}
+th{position:sticky;top:0;z-index:5;padding:3px 5px;font-size:9px;font-weight:700;letter-spacing:.07em;text-transform:uppercase;border:0.5px solid var(--border);white-space:nowrap;background:var(--bg3);color:var(--text3)}
+td{padding:1px 4px;border:0.5px solid #1c2128;text-align:right;min-width:44px;height:17px;color:var(--text);font-size:9px}
+.sk{background:var(--bg3)!important;font-weight:700;font-size:9px;text-align:center;position:sticky;left:0;z-index:2;min-width:44px;color:var(--text);border:0.5px solid var(--border)!important}
+.shc{background:rgba(79,142,247,.1);color:var(--call);font-size:9px;font-weight:700;letter-spacing:.1em;text-align:center;border:0.5px solid var(--border)}
+.shp{background:rgba(224,93,93,.1);color:var(--put);font-size:9px;font-weight:700;letter-spacing:.1em;text-align:center;border:0.5px solid var(--border)}
 .shs{background:var(--bg3);border:0.5px solid var(--border)}
 .call-hi{background:var(--call-hi)}.call-md{background:var(--call-md)}.call-lo{background:var(--call-lo)}
 .put-hi{background:var(--put-hi)}.put-md{background:var(--put-md)}.put-lo{background:var(--put-lo)}
@@ -112,8 +112,8 @@ tr.atm .sk{background:rgba(240,180,41,.22)!important;color:var(--atm)!important}
 .sum-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(320px,1fr));gap:10px;padding:10px 12px}
 .scard{background:var(--bg2);border:0.5px solid var(--border);border-radius:6px;padding:10px}
 .scard-title{font-size:12px;color:var(--text2);text-transform:uppercase;letter-spacing:.08em;margin-bottom:7px;border-bottom:0.5px solid var(--border);padding-bottom:5px;font-weight:700}
-.rtbl{width:100%;font-size:12px;border-collapse:collapse}
-.rtbl th{background:var(--bg3);font-size:12px;padding:3px 6px;color:var(--text3);border:0.5px solid var(--border);text-transform:uppercase;letter-spacing:.05em}
+.rtbl{width:100%;font-size:9px;border-collapse:collapse}
+.rtbl th{background:var(--bg3);font-size:9px;padding:3px 6px;color:var(--text3);border:0.5px solid var(--border);text-transform:uppercase;letter-spacing:.05em}
 .rtbl td{padding:3px 6px;border:0.5px solid var(--border);color:var(--text)}
 
 /* OVERLAY */
@@ -122,14 +122,14 @@ tr.atm .sk{background:rgba(240,180,41,.22)!important;color:var(--atm)!important}
 .ov-box{background:var(--bg2);border:1px solid var(--border);border-radius:8px;padding:22px 30px;text-align:center;min-width:240px}
 .spin{width:28px;height:28px;border:2.5px solid var(--border);border-top-color:var(--blue);border-radius:50%;animation:sp .75s linear infinite;margin:0 auto 10px}
 @keyframes sp{to{transform:rotate(360deg)}}
-.ov-txt{font-size:14px;color:var(--text2)}
-.ov-prog{margin-top:8px;font-size:14px;color:var(--text3)}
+.ov-txt{font-size:10px;color:var(--text2)}
+.ov-prog{margin-top:8px;font-size:10px;color:var(--text3)}
 
 /* STATUS */
-.statusbar{position:fixed;bottom:0;left:0;right:0;background:var(--bg2);border-top:0.5px solid var(--border);padding:3px 14px;font-size:14px;color:var(--text3);z-index:50}
+.statusbar{position:fixed;bottom:0;left:0;right:0;background:var(--bg2);border-top:0.5px solid var(--border);padding:3px 14px;font-size:10px;color:var(--text3);z-index:50}
 
 /* EMPTY STATE */
-.empty{padding:50px;text-align:center;color:var(--text3);font-size:16px;line-height:2}
+.empty{padding:50px;text-align:center;color:var(--text3);font-size:11px;line-height:2}
 
 @media(max-width:950px){.cgrid{grid-template-columns:repeat(2,1fr)}}
 @media(max-width:600px){.cgrid{grid-template-columns:1fr}}
@@ -190,12 +190,12 @@ tr.atm .sk{background:rgba(240,180,41,.22)!important;color:var(--atm)!important}
   <div style="margin-left:auto;display:flex;align-items:center;gap:8px;border-left:0.5px solid var(--border);padding-left:14px">
     <span class="fp-lbl">Days to Expiry:</span>
     <div id="dte-vals" style="display:flex;gap:10px;flex-wrap:wrap;font-size:9px"></div>
-    <span style="font-size:14px;color:var(--text3);margin-left:6px">r=4.5% · Black-76</span>
+    <span style="font-size:10px;color:var(--text3);margin-left:6px">r=4.5% · Black-76</span>
   </div>
 </div>
 <!-- OPTION EXPIRY DATES ROW -->
 <div id="ltd-row" style="background:var(--bg3);border-bottom:0.5px solid var(--border);padding:3px 14px;display:none;gap:14px;flex-wrap:wrap;align-items:center">
-  <span style="font-size:14px;color:var(--text3);text-transform:uppercase;letter-spacing:.05em">Option LTD:</span>
+  <span style="font-size:10px;color:var(--text3);text-transform:uppercase;letter-spacing:.05em">Option LTD:</span>
   <div id="ltd-vals" style="display:flex;gap:10px;flex-wrap:wrap;font-size:9px"></div>
 </div>
 
@@ -275,13 +275,13 @@ tr.atm .sk{background:rgba(240,180,41,.22)!important;color:var(--atm)!important}
     <div style="display:flex;gap:10px;align-items:center;margin-bottom:10px;flex-wrap:wrap">
       <div style="display:flex;gap:6px;align-items:center">
         <span class="fp-lbl">Expiry:</span>
-        <select id="gam-exp" onchange="renderGamma()" style="background:var(--bg2);border:0.5px solid var(--border2);border-radius:4px;color:var(--atm);font-family:'Courier New',monospace;font-size:14px;font-weight:700;padding:3px 7px"></select>
+        <select id="gam-exp" onchange="renderGamma()" style="background:var(--bg2);border:0.5px solid var(--border2);border-radius:4px;color:var(--atm);font-family:'Courier New',monospace;font-size:10px;font-weight:700;padding:3px 7px"></select>
       </div>
       <div style="display:flex;gap:6px;align-items:center">
         <span class="fp-lbl">OI Source:</span>
-        <select id="gam-oi-src" onchange="renderGamma()" style="background:var(--bg2);border:0.5px solid var(--border2);border-radius:4px;color:var(--text);font-family:'Courier New',monospace;font-size:14px;padding:3px 7px"><option value="both">Calls+Puts</option><option value="calls">Calls only</option><option value="puts">Puts only</option></select>
+        <select id="gam-oi-src" onchange="renderGamma()" style="background:var(--bg2);border:0.5px solid var(--border2);border-radius:4px;color:var(--text);font-family:'Courier New',monospace;font-size:10px;padding:3px 7px"><option value="both">Calls+Puts</option><option value="calls">Calls only</option><option value="puts">Puts only</option></select>
       </div>
-      <span style="font-size:14px;color:var(--text3)">Gamma Lots = Γ(K,IV) × OI · ICE contract = 50,000 lbs per lot · IV = avg(call IV, put IV)</span>
+      <span style="font-size:10px;color:var(--text3)">Gamma Lots = Γ(K,IV) × OI · ICE contract = 50,000 lbs per lot · IV = avg(call IV, put IV)</span>
     </div>
     <div class="cgrid" style="grid-template-columns:1fr 1fr;margin-bottom:10px">
       <div class="ccard"><div class="ctitle" id="gam-chart-title">Net Gamma Lots by Strike</div><div class="cwrap" style="height:260px"><canvas id="ch-gamma"></canvas></div></div>
@@ -304,7 +304,7 @@ tr.atm .sk{background:rgba(240,180,41,.22)!important;color:var(--atm)!important}
       <button class="stab on" id="grk-side-both" onclick="grkSide='both';['grk-side-both','grk-side-calls','grk-side-puts'].forEach(id=>{document.getElementById(id).classList.remove('on')});document.getElementById('grk-side-both').classList.add('on');renderGreeks()">Both</button>
       <button class="stab" id="grk-side-calls" onclick="grkSide='calls';['grk-side-both','grk-side-calls','grk-side-puts'].forEach(id=>{document.getElementById(id).classList.remove('on')});document.getElementById('grk-side-calls').classList.add('on');renderGreeks()">Calls</button>
       <button class="stab" id="grk-side-puts" onclick="grkSide='puts';['grk-side-both','grk-side-calls','grk-side-puts'].forEach(id=>{document.getElementById(id).classList.remove('on')});document.getElementById('grk-side-puts').classList.add('on');renderGreeks()">Puts</button>
-      <span style="font-size:14px;color:var(--text3);margin-left:6px">IV = avg(C+P) via put-call parity · columns: Strike | Price | OI | IV% | Δ | Γ | Vega | Theta</span>
+      <span style="font-size:10px;color:var(--text3);margin-left:6px">IV = avg(C+P) via put-call parity · columns: Strike | Price | OI | IV% | Δ | Γ | Vega | Theta</span>
     </div>
     <div class="mwrap" id="grk-wrap" style="max-height:72vh">
       <div class="empty">Load PDFs and futures prices to compute Greeks.</div>
@@ -323,13 +323,13 @@ tr.atm .sk{background:rgba(240,180,41,.22)!important;color:var(--atm)!important}
         <input id="pr-iv" type="number" step="0.1" placeholder="e.g. 20.5" style="background:var(--bg3);border:0.5px solid var(--border2);border-radius:4px;color:var(--green);font-family:'Courier New',monospace;font-size:14px;font-weight:700;padding:4px 8px;width:80px;text-align:right">
       </div>
       <div class="hs"><span class="hs-lbl">Expiry</span>
-        <select id="pr-exp" style="background:var(--bg3);border:0.5px solid var(--border2);border-radius:4px;color:var(--text);font-family:'Courier New',monospace;font-size:16px;padding:5px 8px"></select>
+        <select id="pr-exp" style="background:var(--bg3);border:0.5px solid var(--border2);border-radius:4px;color:var(--text);font-family:'Courier New',monospace;font-size:11px;padding:5px 8px"></select>
       </div>
-      <button onclick="runPricer()" style="background:var(--blue);border:none;border-radius:4px;color:#fff;font-family:'Courier New',monospace;font-size:14px;font-weight:700;padding:6px 16px;cursor:pointer;letter-spacing:.05em">CALCULATE</button>
-      <span style="font-size:14px;color:var(--text3);align-self:center">Global IV overrides per-strike IV · blank = use market IV from loaded PDFs</span>
+      <button onclick="runPricer()" style="background:var(--blue);border:none;border-radius:4px;color:#fff;font-family:'Courier New',monospace;font-size:10px;font-weight:700;padding:6px 16px;cursor:pointer;letter-spacing:.05em">CALCULATE</button>
+      <span style="font-size:10px;color:var(--text3);align-self:center">Global IV overrides per-strike IV · blank = use market IV from loaded PDFs</span>
     </div>
     <div style="background:var(--bg2);border:0.5px solid var(--border);border-radius:6px;padding:10px 14px;margin-bottom:10px">
-      <div style="font-size:14px;color:var(--text2);text-transform:uppercase;letter-spacing:.08em;margin-bottom:8px;font-weight:700">Per-Strike IV Surface Editor <span style="color:var(--text3);font-weight:400;text-transform:none">(edit IV% cells to override, blank = use market IV)</span></div>
+      <div style="font-size:10px;color:var(--text2);text-transform:uppercase;letter-spacing:.08em;margin-bottom:8px;font-weight:700">Per-Strike IV Surface Editor <span style="color:var(--text3);font-weight:400;text-transform:none">(edit IV% cells to override, blank = use market IV)</span></div>
       <div style="overflow-x:auto;max-height:220px"><table style="width:100%"><thead id="pr-vol-thead"></thead><tbody id="pr-vol-tbody"></tbody></table></div>
     </div>
     <div style="overflow-x:auto;max-height:360px"><table style="width:100%"><thead id="pr-thead"></thead><tbody id="pr-tbody"></tbody></table></div>
@@ -353,17 +353,17 @@ tr.atm .sk{background:rgba(240,180,41,.22)!important;color:var(--atm)!important}
         <div class="scard-title">Payoff Settings</div>
         <div style="display:flex;flex-direction:column;gap:8px">
           <div style="display:flex;gap:8px;align-items:center;font-size:9px">
-            <span class="fp-lbl" style="min-width:80px">Price Chg</span>
-            <input id="st-F" type="number" step="0.01" placeholder="current F" style="background:var(--bg3);border:0.5px solid var(--amber);border-radius:4px;color:var(--atm);font-family:'Courier New',monospace;font-size:16px;padding:3px 7px;width:80px;text-align:right" oninput="runStrategy()">
+            <span class="fp-lbl" style="min-width:80px">Futures Price</span>
+            <input id="st-F" type="number" step="0.01" placeholder="current F" style="background:var(--bg3);border:0.5px solid var(--amber);border-radius:4px;color:var(--atm);font-family:'Courier New',monospace;font-size:11px;padding:3px 7px;width:80px;text-align:right" oninput="runStrategy()">
           </div>
           <div style="display:flex;gap:8px;align-items:center;font-size:9px">
             <span class="fp-lbl" style="min-width:80px">Price Range %</span>
-            <input id="st-range" type="number" value="20" min="5" max="50" step="1" style="background:var(--bg3);border:0.5px solid var(--border2);border-radius:4px;color:var(--text);font-family:'Courier New',monospace;font-size:16px;padding:3px 7px;width:60px;text-align:right" oninput="runStrategy()">
+            <input id="st-range" type="number" value="20" min="5" max="50" step="1" style="background:var(--bg3);border:0.5px solid var(--border2);border-radius:4px;color:var(--text);font-family:'Courier New',monospace;font-size:11px;padding:3px 7px;width:60px;text-align:right" oninput="runStrategy()">
             <span style="color:var(--text3)">%</span>
           </div>
           <div style="display:flex;gap:8px;align-items:center;font-size:9px">
             <span class="fp-lbl" style="min-width:80px">Show P&amp;L in</span>
-            <select id="st-pnl" onchange="runStrategy()" style="background:var(--bg3);border:0.5px solid var(--border2);border-radius:4px;color:var(--text);font-family:'Courier New',monospace;font-size:14px;padding:3px 7px">
+            <select id="st-pnl" onchange="runStrategy()" style="background:var(--bg3);border:0.5px solid var(--border2);border-radius:4px;color:var(--text);font-family:'Courier New',monospace;font-size:10px;padding:3px 7px">
               <option value="cents">Cents/lb</option>
               <option value="dollars">$ per contract</option>
               <option value="lots">$ for N lots</option>
@@ -371,7 +371,7 @@ tr.atm .sk{background:rgba(240,180,41,.22)!important;color:var(--atm)!important}
           </div>
           <div style="display:flex;gap:8px;align-items:center;font-size:9px" id="st-lots-row">
             <span class="fp-lbl" style="min-width:80px">Lots</span>
-            <input id="st-lots" type="number" value="1" min="1" style="background:var(--bg3);border:0.5px solid var(--border2);border-radius:4px;color:var(--text);font-family:'Courier New',monospace;font-size:16px;padding:3px 7px;width:60px;text-align:right" oninput="runStrategy()">
+            <input id="st-lots" type="number" value="1" min="1" style="background:var(--bg3);border:0.5px solid var(--border2);border-radius:4px;color:var(--text);font-family:'Courier New',monospace;font-size:11px;padding:3px 7px;width:60px;text-align:right" oninput="runStrategy()">
           </div>
         </div>
       </div>
@@ -409,7 +409,7 @@ tr.atm .sk{background:rgba(240,180,41,.22)!important;color:var(--atm)!important}
       </div>
       <div style="display:flex;gap:6px;align-items:center">
         <span class="fp-lbl">Strike range:</span>
-        <select id="vs-range" onchange="renderVolSmile()" style="background:var(--bg2);border:0.5px solid var(--border2);border-radius:4px;color:var(--text);font-family:'Courier New',monospace;font-size:14px;padding:3px 7px">
+        <select id="vs-range" onchange="renderVolSmile()" style="background:var(--bg2);border:0.5px solid var(--border2);border-radius:4px;color:var(--text);font-family:'Courier New',monospace;font-size:10px;padding:3px 7px">
           <option value="20">±20 strikes of ATM</option>
           <option value="15">±15 strikes</option>
           <option value="10">±10 strikes</option>
@@ -426,7 +426,7 @@ tr.atm .sk{background:rgba(240,180,41,.22)!important;color:var(--atm)!important}
     <div class="ccard" style="margin-bottom:10px">
       <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:7px">
         <div class="ctitle" id="vs-main-title">Vol Smile — All Expiries</div>
-        <div style="font-size:14px;color:var(--text3)">Solid = Calls · Dashed = Puts · Dot = ATM</div>
+        <div style="font-size:10px;color:var(--text3)">Solid = Calls · Dashed = Puts · Dot = ATM</div>
       </div>
       <div class="cwrap" style="height:320px"><canvas id="ch-vs-main"></canvas></div>
     </div>
@@ -435,12 +435,12 @@ tr.atm .sk{background:rgba(240,180,41,.22)!important;color:var(--atm)!important}
     <div class="cgrid" style="grid-template-columns:1fr 1fr;margin-bottom:10px">
       <div class="ccard">
         <div class="ctitle">1-Day IV Change by Strike (pp)</div>
-        <div style="font-size:14px;color:var(--text3);margin-bottom:6px" id="vs-1d-label">vs <span id="vs-prev-date">—</span></div>
+        <div style="font-size:10px;color:var(--text3);margin-bottom:6px" id="vs-1d-label">vs <span id="vs-prev-date">—</span></div>
         <div class="cwrap" style="height:240px"><canvas id="ch-vs-1d"></canvas></div>
       </div>
       <div class="ccard">
         <div class="ctitle">Weekly IV Change by Strike (pp)</div>
-        <div style="font-size:14px;color:var(--text3);margin-bottom:6px" id="vs-1w-label">vs <span id="vs-week-date">—</span></div>
+        <div style="font-size:10px;color:var(--text3);margin-bottom:6px" id="vs-1w-label">vs <span id="vs-week-date">—</span></div>
         <div class="cwrap" style="height:240px"><canvas id="ch-vs-1w"></canvas></div>
       </div>
     </div>
@@ -449,12 +449,12 @@ tr.atm .sk{background:rgba(240,180,41,.22)!important;color:var(--atm)!important}
     <div class="cgrid" style="grid-template-columns:1fr 1fr;margin-bottom:10px">
       <div class="ccard">
         <div class="ctitle">ATM IV Term Structure</div>
-        <div style="font-size:14px;color:var(--text3);margin-bottom:6px">ATM IV% across expiries · today vs 1D vs 1W</div>
+        <div style="font-size:10px;color:var(--text3);margin-bottom:6px">ATM IV% across expiries · today vs 1D vs 1W</div>
         <div class="cwrap" style="height:220px"><canvas id="ch-vs-term"></canvas></div>
       </div>
       <div class="ccard">
         <div class="ctitle">25Δ Skew by Expiry</div>
-        <div style="font-size:14px;color:var(--text3);margin-bottom:6px">IV(25Δ Put) − IV(25Δ Call) · today vs 1D vs 1W</div>
+        <div style="font-size:10px;color:var(--text3);margin-bottom:6px">IV(25Δ Put) − IV(25Δ Call) · today vs 1D vs 1W</div>
         <div class="cwrap" style="height:220px"><canvas id="ch-vs-skew"></canvas></div>
       </div>
     </div>
@@ -494,7 +494,7 @@ tr.atm .sk{background:rgba(240,180,41,.22)!important;color:var(--atm)!important}
     <!-- Weekly narrative summary -->
     <div class="ccard">
       <div class="ctitle">Weekly Activity Summary</div>
-      <div id="sent-narrative" style="font-size:14px;line-height:1.9;color:var(--text2)"></div>
+      <div id="sent-narrative" style="font-size:10px;line-height:1.9;color:var(--text2)"></div>
     </div>
   </div>
 </div>
@@ -506,12 +506,12 @@ tr.atm .sk{background:rgba(240,180,41,.22)!important;color:var(--atm)!important}
   <div style="padding:10px 14px">
     <div style="display:flex;gap:10px;align-items:center;margin-bottom:10px;flex-wrap:wrap">
       <span class="fp-lbl">Expiry 1:</span>
-      <select id="oic-exp1" onchange="renderOIChanges()" style="background:var(--bg2);border:0.5px solid var(--border2);border-radius:4px;color:var(--atm);font-family:'Courier New',monospace;font-size:14px;font-weight:700;padding:3px 7px"></select>
+      <select id="oic-exp1" onchange="renderOIChanges()" style="background:var(--bg2);border:0.5px solid var(--border2);border-radius:4px;color:var(--atm);font-family:'Courier New',monospace;font-size:10px;font-weight:700;padding:3px 7px"></select>
       <span class="fp-lbl">Expiry 2:</span>
-        <select id="oic-exp2" onchange="renderOIChanges()" style="background:var(--bg2);border:0.5px solid var(--border2);border-radius:4px;color:var(--atm);font-family:'Courier New',monospace;font-size:14px;font-weight:700;padding:3px 7px"><option value="">— Select —</option></select>
+        <select id="oic-exp2" onchange="renderOIChanges()" style="background:var(--bg2);border:0.5px solid var(--border2);border-radius:4px;color:var(--atm);font-family:'Courier New',monospace;font-size:10px;font-weight:700;padding:3px 7px"><option value="">— Select —</option></select>
       <span class="fp-lbl">Min OI/Volume:</span>
-      <input id="oic-min" type="number" value="1000" min="100" step="100" style="background:var(--bg2);border:0.5px solid var(--border2);border-radius:4px;color:var(--text);font-family:'Courier New',monospace;font-size:14px;padding:3px 7px;width:70px;text-align:right" onchange="renderOIChanges()">
-      <span style="font-size:14px;color:var(--text3)">Strikes with OI or Volume ≥ threshold</span>
+      <input id="oic-min" type="number" value="1000" min="100" step="100" style="background:var(--bg2);border:0.5px solid var(--border2);border-radius:4px;color:var(--text);font-family:'Courier New',monospace;font-size:10px;padding:3px 7px;width:70px;text-align:right" onchange="renderOIChanges()">
+      <span style="font-size:10px;color:var(--text3)">Strikes with OI or Volume ≥ threshold</span>
     </div>
     <div class="mwrap" id="oic-wrap" style="max-height:72vh">
       <div class="empty">Load CSV data to see OI changes.</div>
@@ -571,11 +571,11 @@ tr.atm .sk{background:rgba(240,180,41,.22)!important;color:var(--atm)!important}
     <div style="background:var(--bg2);border:0.5px solid var(--border);border-radius:6px;padding:10px;margin-bottom:10px">
       <div class="scard-title">Stress Test Parameters</div>
       <div style="display:flex;gap:12px;align-items:center;flex-wrap:wrap;font-size:9px">
-        <div class="hs"><span class="hs-lbl">Price Chg</span><input id="stress-F" type="number" step="0.01" style="background:var(--bg3);border:0.5px solid var(--amber);border-radius:3px;color:var(--atm);font-family:'Courier New',monospace;font-size:16px;padding:3px 6px;width:70px;text-align:right" oninput="runStressTest()"></div>
-        <div class="hs"><span class="hs-lbl">Days from Today</span><input id="stress-days" type="number" value="0" min="0" style="background:var(--bg3);border:0.5px solid var(--border2);border-radius:3px;color:var(--text);font-family:'Courier New',monospace;font-size:16px;padding:3px 6px;width:50px;text-align:right" oninput="runStressTest()"></div>
-        <div class="hs"><span class="hs-lbl">IV Change (pp)</span><input id="stress-ivchg" type="number" value="0" step="0.1" style="background:var(--bg3);border:0.5px solid var(--border2);border-radius:3px;color:var(--text);font-family:'Courier New',monospace;font-size:16px;padding:3px 6px;width:60px;text-align:right" oninput="runStressTest()"></div>
+        <div class="hs"><span class="hs-lbl">Futures Price</span><input id="stress-F" type="number" step="0.01" style="background:var(--bg3);border:0.5px solid var(--amber);border-radius:3px;color:var(--atm);font-family:'Courier New',monospace;font-size:11px;padding:3px 6px;width:70px;text-align:right" oninput="runStressTest()"></div>
+        <div class="hs"><span class="hs-lbl">Days Forward</span><input id="stress-days" type="number" value="0" min="0" style="background:var(--bg3);border:0.5px solid var(--border2);border-radius:3px;color:var(--text);font-family:'Courier New',monospace;font-size:11px;padding:3px 6px;width:50px;text-align:right" oninput="runStressTest()"></div>
+        <div class="hs"><span class="hs-lbl">IV Change (pp)</span><input id="stress-ivchg" type="number" value="0" step="0.1" style="background:var(--bg3);border:0.5px solid var(--border2);border-radius:3px;color:var(--text);font-family:'Courier New',monospace;font-size:11px;padding:3px 6px;width:60px;text-align:right" oninput="runStressTest()"></div>
         <button onclick="runStressTest()" style="background:var(--blue);border:none;border-radius:3px;color:#fff;font-family:'Courier New',monospace;font-size:9px;padding:4px 12px;cursor:pointer">CALCULATE</button>
-        <span style="font-size:14px;color:var(--text3)">Enter price/days/IV change → see P&L impact</span>
+        <span style="font-size:10px;color:var(--text3)">Enter price/days/IV change → see P&L impact</span>
       </div>
     </div>
 
@@ -591,7 +591,6 @@ tr.atm .sk{background:rgba(240,180,41,.22)!important;color:var(--atm)!important}
 
 <div class="statusbar" id="sb">Loading data from GitHub...</div>
 
-<script>
 <script>
 // ═══════════════════ CONFIG ═══════════════════
 pdfjsLib.GlobalWorkerOptions.workerSrc='https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
@@ -3059,7 +3058,7 @@ function renderOIChanges(){
 
     // Filter: ±20 from ATM AND (OI≥1000 OR Vol≥500)
     const byDist = [...allStrikes].sort((a,b) => Math.abs(a-F) - Math.abs(b-F));
-    const nearATM = new Set(byDist.slice(0, 41));
+    const nearATM = new Set(byDist.slice(0, 41)); // ±20 from ATM
 
     const validStrikes = [...allStrikes].filter(s => {
       const c = calls[s] || {}, p = puts[s] || {};
@@ -3070,160 +3069,81 @@ function renderOIChanges(){
 
     if(!validStrikes.length) return '<div class="empty">No strikes meet criteria.</div>';
 
-    // Helper to get historical data
-    function getOiVol(exp, K, side, dateKey) {
-      if(!dateKey || !days[dateKey]) return {oi:0, vol:0, oiChange:0, iv:0};
-      const rec = days[dateKey][side]?.[exp]?.[K] || {};
-      return {oi: rec.oi||0, vol: rec.vol||0, oiChange: rec.oiChange||0, iv: rec.iv||0};
-    }
-
-    // MTD calculations
-    const monthStart = latestDate.substring(0, 8) + '01';
-    const mtdDates = sortedDates.filter(d => d >= monthStart && d <= latestDate);
-
-    let h = '<table style="font-size:12px">';
-
-    // Futures price centered at top
-    h += `<div style="font-size:14px;color:var(--atm);font-weight:700;margin-bottom:8px;text-align:center">Futures Price: ${F.toFixed(2)}</div>`;
-
-    // Header row 1: Calls | Strike | Puts
+    let h = '<table style="font-size:9px">';
+    // Header: Calls (left) | Strike (center) | Puts (right)
     h += '<thead><tr>';
-    h += '<th colspan="10" style="color:var(--call);text-align:center;font-size:14px;background:rgba(79,142,247,.1)">CALLS</th>';
-    h += '<th class="sk" style="font-size:14px;text-align:center">Strike</th>';
-    h += '<th colspan="10" style="color:var(--put);text-align:center;font-size:14px;background:rgba(224,93,93,.1)">PUTS</th>';
+    h += '<th colspan="5" style="color:var(--call);text-align:center;font-size:10px;background:rgba(79,142,247,.1)">CALLS</th>';
+    h += '<th class="sk" style="font-size:10px">Strike</th>';
+    h += '<th colspan="5" style="color:var(--put);text-align:center;font-size:10px;background:rgba(224,93,93,.1)">PUTS</th>';
     h += '</tr><tr>';
-
-    // Call columns (10)
-    h += '<th style="color:var(--call);font-size:12px">OI</th>';
-    h += '<th style="color:var(--call);font-size:12px">Vol</th>';
-    h += '<th style="color:var(--call);font-size:12px">OI Δ1D</th>';
-    h += '<th style="color:var(--call);font-size:12px">Vol 5D</th>';
-    h += '<th style="color:var(--call);font-size:12px">OI Δ5D</th>';
-    h += '<th style="color:var(--call);font-size:12px">Vol MTD</th>';
-    h += '<th style="color:var(--call);font-size:12px">OI ΔMTD</th>';
-    h += '<th style="color:var(--call);font-size:12px">IV%</th>';
-    h += '<th style="color:var(--call);font-size:12px">IV Δ1D</th>';
-    h += '<th style="color:var(--call);font-size:12px">IV Δ5D</th>';
-
+    // Call columns
+    h += '<th style="color:var(--call);font-size:9px">OI</th>';
+    h += '<th style="color:var(--call);font-size:9px">Vol</th>';
+    h += '<th style="color:var(--call);font-size:9px">OI Δ1D</th>';
+    h += '<th style="color:var(--call);font-size:9px">Vol 5D</th>';
+    h += '<th style="color:var(--call);font-size:9px">OI Δ5D</th>';
     // Strike
-    h += '<th class="sk" style="font-size:12px"></th>';
-
-    // Put columns (10)
-    h += '<th style="color:var(--put);font-size:12px">OI</th>';
-    h += '<th style="color:var(--put);font-size:12px">Vol</th>';
-    h += '<th style="color:var(--put);font-size:12px">OI Δ1D</th>';
-    h += '<th style="color:var(--put);font-size:12px">Vol 5D</th>';
-    h += '<th style="color:var(--put);font-size:12px">OI Δ5D</th>';
-    h += '<th style="color:var(--put);font-size:12px">Vol MTD</th>';
-    h += '<th style="color:var(--put);font-size:12px">OI ΔMTD</th>';
-    h += '<th style="color:var(--put);font-size:12px">IV%</th>';
-    h += '<th style="color:var(--put);font-size:12px">IV Δ1D</th>';
-    h += '<th style="color:var(--put);font-size:12px">IV Δ5D</th>';
+    h += '<th class="sk" style="font-size:9px"></th>';
+    // Put columns
+    h += '<th style="color:var(--put);font-size:9px">OI</th>';
+    h += '<th style="color:var(--put);font-size:9px">Vol</th>';
+    h += '<th style="color:var(--put);font-size:9px">OI Δ1D</th>';
+    h += '<th style="color:var(--put);font-size:9px">Vol 5D</th>';
+    h += '<th style="color:var(--put);font-size:9px">OI Δ5D</th>';
     h += '</tr></thead><tbody>';
 
     validStrikes.forEach(K => {
       const isATM = Math.abs(K-F) < 0.5;
       h += `<tr${isATM?' class="atm"':''}>`;
 
-      // CALL side data
+      // CALL side (left)
       const cRec = calls[K] || {};
       const cOi = cRec.oi || 0;
       const cVol = cRec.vol || 0;
       const cOiChg = cRec.oiChange || 0;
-      const cIv = cRec.iv || 0;
 
-      // 1D previous
-      const cPrev = getOiVol(exp, K, 'calls', prevDate);
-      const cIvChg1d = cIv - cPrev.iv;
-
-      // 5D
-      let cVol5d = 0, cOi5dStart = 0, cIv5d = 0;
-      if(day5Date && days[day5Date]) {
+      let cVol5d = 0, cOi5dStart = 0;
+      if(day5Date && days[day5Date]){
         const d5 = days[day5Date].calls?.[exp]?.[K];
         cOi5dStart = d5?.oi || 0;
-        cIv5d = d5?.iv || 0;
         for(let i = Math.max(0, todayIdx-5); i <= todayIdx; i++){
           const d = days[sortedDates[i]];
           if(d) cVol5d += d.calls?.[exp]?.[K]?.vol || 0;
         }
       }
       const cOiChg5d = cOi - cOi5dStart;
-      const cIvChg5d = cIv - cIv5d;
-
-      // MTD
-      let cVolMtd = 0, cOiMtdStart = 0, cIvMtd = 0;
-      if(mtdDates.length > 0) {
-        const first = days[mtdDates[0]]?.calls?.[exp]?.[K];
-        cOiMtdStart = first?.oi || 0;
-        cIvMtd = first?.iv || 0;
-        for(let d of mtdDates) {
-          const day = days[d];
-          if(day) cVolMtd += day.calls?.[exp]?.[K]?.vol || 0;
-        }
-      }
-      const cOiChgMtd = cOi - cOiMtdStart;
-      const cIvChgMtd = cIv - cIvMtd;
 
       h += `<td style="color:var(--call)">${cOi.toLocaleString()}</td>`;
       h += `<td style="color:var(--call)">${cVol.toLocaleString()}</td>`;
       h += `<td class="${cOiChg>0?'pos':'neg'}">${cOiChg>0?'+':''}${cOiChg.toLocaleString()}</td>`;
       h += `<td style="color:var(--call)">${cVol5d.toLocaleString()}</td>`;
       h += `<td class="${cOiChg5d>0?'pos':'neg'}">${cOiChg5d>0?'+':''}${cOiChg5d.toLocaleString()}</td>`;
-      h += `<td style="color:var(--call)">${cVolMtd.toLocaleString()}</td>`;
-      h += `<td class="${cOiChgMtd>0?'pos':'neg'}">${cOiChgMtd>0?'+':''}${cOiChgMtd.toLocaleString()}</td>`;
-      h += `<td style="color:var(--call)">${(cIv*100).toFixed(1)}%</td>`;
-      h += `<td class="${cIvChg1d>0?'pos':'neg'}">${cIvChg1d>0?'+':''}${(cIvChg1d*100).toFixed(1)}pp</td>`;
-      h += `<td class="${cIvChg5d>0?'pos':'neg'}">${cIvChg5d>0?'+':''}${(cIvChg5d*100).toFixed(1)}pp</td>`;
 
-      // STRIKE
-      h += `<td class="sk" style="font-size:13px;font-weight:700">${K}${isATM?'<span class="atm-tag">ATM</span>':''}</td>`;
+      // STRIKE (center)
+      h += `<td class="sk">${K}${isATM?'<span class="atm-tag">ATM</span>':''}</td>`;
 
-      // PUT side data
+      // PUT side (right)
       const pRec = puts[K] || {};
       const pOi = pRec.oi || 0;
       const pVol = pRec.vol || 0;
       const pOiChg = pRec.oiChange || 0;
-      const pIv = pRec.iv || 0;
 
-      const pPrev = getOiVol(exp, K, 'puts', prevDate);
-      const pIvChg1d = pIv - pPrev.iv;
-
-      let pVol5d = 0, pOi5dStart = 0, pIv5d = 0;
-      if(day5Date && days[day5Date]) {
+      let pVol5d = 0, pOi5dStart = 0;
+      if(day5Date && days[day5Date]){
         const d5 = days[day5Date].puts?.[exp]?.[K];
         pOi5dStart = d5?.oi || 0;
-        pIv5d = d5?.iv || 0;
         for(let i = Math.max(0, todayIdx-5); i <= todayIdx; i++){
           const d = days[sortedDates[i]];
           if(d) pVol5d += d.puts?.[exp]?.[K]?.vol || 0;
         }
       }
       const pOiChg5d = pOi - pOi5dStart;
-      const pIvChg5d = pIv - pIv5d;
-
-      let pVolMtd = 0, pOiMtdStart = 0, pIvMtd = 0;
-      if(mtdDates.length > 0) {
-        const first = days[mtdDates[0]]?.puts?.[exp]?.[K];
-        pOiMtdStart = first?.oi || 0;
-        pIvMtd = first?.iv || 0;
-        for(let d of mtdDates) {
-          const day = days[d];
-          if(day) pVolMtd += day.puts?.[exp]?.[K]?.vol || 0;
-        }
-      }
-      const pOiChgMtd = pOi - pOiMtdStart;
-      const pIvChgMtd = pIv - pIvMtd;
 
       h += `<td style="color:var(--put)">${pOi.toLocaleString()}</td>`;
       h += `<td style="color:var(--put)">${pVol.toLocaleString()}</td>`;
       h += `<td class="${pOiChg>0?'pos':'neg'}">${pOiChg>0?'+':''}${pOiChg.toLocaleString()}</td>`;
       h += `<td style="color:var(--put)">${pVol5d.toLocaleString()}</td>`;
       h += `<td class="${pOiChg5d>0?'pos':'neg'}">${pOiChg5d>0?'+':''}${pOiChg5d.toLocaleString()}</td>`;
-      h += `<td style="color:var(--put)">${pVolMtd.toLocaleString()}</td>`;
-      h += `<td class="${pOiChgMtd>0?'pos':'neg'}">${pOiChgMtd>0?'+':''}${pOiChgMtd.toLocaleString()}</td>`;
-      h += `<td style="color:var(--put)">${(pIv*100).toFixed(1)}%</td>`;
-      h += `<td class="${pIvChg1d>0?'pos':'neg'}">${pIvChg1d>0?'+':''}${(pIvChg1d*100).toFixed(1)}pp</td>`;
-      h += `<td class="${pIvChg5d>0?'pos':'neg'}">${pIvChg5d>0?'+':''}${(pIvChg5d*100).toFixed(1)}pp</td>`;
 
       h += '</tr>';
     });
@@ -3233,26 +3153,20 @@ function renderOIChanges(){
 
   // Build side-by-side layout
   let html = '<div style="display:flex;gap:10px;align-items:flex-start">';
-
-  // Futures price centered at top
-  const futPrice = F1.toFixed(2);
-  html += `<div style="width:100%;text-align:center;margin-bottom:10px;font-size:16px;font-weight:700;color:var(--atm)">Futures Price: ${futPrice}</div>`;
-
-  html += '<div style="display:flex;gap:10px;align-items:flex-start;width:100%">';
   html += '<div style="flex:1;min-width:0">';
-  html += `<div style="font-size:14px;color:var(--atm);font-weight:700;margin-bottom:5px;text-align:center">${EXP_LBL[exp1]||exp1}</div>`;
+  html += `<div style="font-size:11px;color:var(--atm);font-weight:700;margin-bottom:5px;text-align:center">${EXP_LBL[exp1]||exp1} · F=${F1.toFixed(2)}</div>`;
   html += buildExpiryTable(exp1, F1);
   html += '</div>';
 
   if(exp2) {
     html += '<div style="flex:1;min-width:0">';
-    html += `<div style="font-size:14px;color:var(--atm);font-weight:700;margin-bottom:5px;text-align:center">${EXP_LBL[exp2]||exp2}</div>`;
+    html += `<div style="font-size:11px;color:var(--atm);font-weight:700;margin-bottom:5px;text-align:center">${EXP_LBL[exp2]||exp2} · F=${F2.toFixed(2)}</div>`;
     html += buildExpiryTable(exp2, F2);
     html += '</div>';
   }
 
-  html += '</div></div>';
-document.getElementById('oic-wrap').innerHTML = html;
+  html += '</div>';
+  document.getElementById('oic-wrap').innerHTML = html;
   setSB(`Options Monthly Summary · ${EXP_LBL[exp1]||exp1}${exp2?' + '+(EXP_LBL[exp2]||exp2):''} · F=${F1.toFixed(2)}`);
 }
 
@@ -3329,7 +3243,7 @@ function renderPortfolioTable(){
   const dd = days[latestDate];
   const contractSize = getComm().contractSize || 50000;
 
-  let h = '<table class="rtbl" style="font-size:12px"><thead><tr>';
+  let h = '<table class="rtbl" style="font-size:9px"><thead><tr>';
   h += '<th>Expiry</th><th>Side</th><th>Lots</th><th>C/P</th><th>Strike</th><th>Premium</th>';
   h += '<th>Mark</th><th>IV%</th><th>Delta</th><th>Gamma</th><th>Theta</th><th>Vega</th><th>P&L</th>';
   h += '</tr></thead><tbody>';
@@ -3372,8 +3286,8 @@ function renderPortfolioTable(){
 
   // Total row
   h += `<tr style="border-top:2px solid var(--border);font-weight:700;background:rgba(88,166,255,.08)">`;
-  h += `<td colspan="8">PORTFOLIO TOTAL</td>`;
-  h += ``;
+  h += `<td colspan="7">PORTFOLIO TOTAL</td>`;
+  h += `<td>—</td>`;
   h += `<td>${totalDelta.toFixed(2)}</td>`;
   h += `<td>${totalGamma.toFixed(4)}</td>`;
   h += `<td>${totalTheta.toFixed(2)}</td>`;
@@ -3405,7 +3319,7 @@ function runStressTest(){
   });
 
   // Build stress table: each scenario
-  let h = '<table class="rtbl" style="font-size:12px"><thead><tr>';
+  let h = '<table class="rtbl" style="font-size:9px"><thead><tr>';
   h += '<th>Expiry</th><th>Side</th><th>Lots</th><th>C/P</th><th>Strike</th><th>Premium</th>';
   h += '<th>Price Chg</th><th>IV Chg</th><th>Days</th><th>Stressed P&L</th><th>Price Effect</th><th>IV Effect</th><th>Time Effect</th><th>Combined</th>';
   h += '</tr></thead><tbody>';
@@ -3459,7 +3373,7 @@ function runStressTest(){
 
   // Total row
   h += `<tr style="border-top:2px solid var(--border);font-weight:700;background:rgba(88,166,255,.08)">`;
-  h += `<td colspan="9">PORTFOLIO TOTAL</td>`;
+  h += `<td colspan="8">PORTFOLIO TOTAL</td>`;
   h += `<td class="${totalStressed>=0?'pos':'neg'}">${totalStressed>=0?'+':''}${totalStressed.toFixed(2)}</td>`;
   h += `<td class="${totalPriceEff>=0?'pos':'neg'}">${totalPriceEff>=0?'+':''}${totalPriceEff.toFixed(2)}</td>`;
   h += `<td class="${totalIVEff>=0?'pos':'neg'}">${totalIVEff>=0?'+':''}${totalIVEff.toFixed(2)}</td>`;
