@@ -488,8 +488,8 @@ function renderOIChanges(){
   const todayIdx = sortedDates.indexOf(latestDate);
   const prevDate = sortedDates[todayIdx-1] || null;
   const day5Date = sortedDates[Math.max(0, todayIdx-5)] || null;
-  const monthStart = latestDate.substring(0, 8) + '01';
-  const mtdDates = sortedDates.filter(d => d >= monthStart && d <= latestDate);
+  // MTD here means "to-date since the first available date" (not calendar month).
+  const mtdDates = sortedDates.slice(0, todayIdx + 1);
   const mtdStartDate = mtdDates[0] || null;
 
   function _fmtInt(x){ return (x||0).toLocaleString(); }
@@ -2924,10 +2924,6 @@ function renderAll(){
   if(sumSec.classList.contains('on'))renderSummary();
   const sentSec=document.getElementById('sec-sentiment');
   if(sentSec.classList.contains('on'))renderSentiment();
-  const oicSec=document.getElementById('sec-oichanges');
-  if(oicSec&&oicSec.classList.contains('on'))renderOIChanges();
-  const portSec=document.getElementById('sec-portfolio');
-  if(portSec&&portSec.classList.contains('on')){ initPortfolio(); renderPortfolioTable&&renderPortfolioTable(); }
 }
 
 // ═══════════════════ NAV ═══════════════════
