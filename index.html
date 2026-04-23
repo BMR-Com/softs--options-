@@ -3077,9 +3077,10 @@ function renderOIChanges(){
     let h = '<table style="font-size:9px">';
     // Header: Calls (left) | Strike (center) | Puts (right)
     h += '<thead><tr>';
-    h += '<th colspan="9" style="color:var(--call);text-align:center;font-size:10px;background:rgba(79,142,247,.1)">CALLS</th>';
+    h += '<th colspan="11" style="color:var(--call);text-align:center;font-size:10px;background:rgba(79,142,247,.1)">CALLS</th>';
     h += '<th class="sk" style="font-size:10px">Strike</th>';
-    h += '<th colspan="9" style="color:var(--put);text-align:center;font-size:10px;background:rgba(224,93,93,.1)">PUTS</th>';
+    // Puts: no IV columns (keep table narrower)
+    h += '<th colspan="7" style="color:var(--put);text-align:center;font-size:10px;background:rgba(224,93,93,.1)">PUTS</th>';
     h += '</tr><tr>';
     // Call columns
     h += '<th style="color:var(--call);font-size:9px">OI</th>';
@@ -3103,10 +3104,6 @@ function renderOIChanges(){
     h += '<th style="color:var(--put);font-size:9px">OI Δ5D</th>';
     h += '<th style="color:var(--put);font-size:9px">Vol MTD</th>';
     h += '<th style="color:var(--put);font-size:9px">OI ΔMTD</th>';
-    h += '<th style="color:var(--put);font-size:9px">IV%</th>';
-    h += '<th style="color:var(--put);font-size:9px">IV Δ1D</th>';
-    h += '<th style="color:var(--put);font-size:9px">IV Δ5D</th>';
-    h += '<th style="color:var(--put);font-size:9px">IV ΔMTD</th>';
     h += '</tr></thead><tbody>';
 
     validStrikes.forEach(K => {
@@ -3197,15 +3194,6 @@ function renderOIChanges(){
       }
       const pOiChgMtd = pOi - pOiMtdStart;
 
-      // IV + IV changes
-      const pIv = avgIV(exp, K, dd, latestDate);
-      const pIvPrev = prevDate && days[prevDate] ? avgIV(exp, K, days[prevDate], prevDate) : null;
-      const pIv5 = day5Date && days[day5Date] ? avgIV(exp, K, days[day5Date], day5Date) : null;
-      const pIvMtd = mtdStartDate && days[mtdStartDate] ? avgIV(exp, K, days[mtdStartDate], mtdStartDate) : null;
-      const pIvChg1d = (pIv!=null && pIvPrev!=null) ? (pIv - pIvPrev) : null;
-      const pIvChg5d = (pIv!=null && pIv5!=null) ? (pIv - pIv5) : null;
-      const pIvChgMtd = (pIv!=null && pIvMtd!=null) ? (pIv - pIvMtd) : null;
-
       h += `<td style="color:var(--put)">${pOi.toLocaleString()}</td>`;
       h += `<td style="color:var(--put)">${pVol.toLocaleString()}</td>`;
       h += `<td class="${pOiChg>0?'pos':'neg'}">${pOiChg>0?'+':''}${pOiChg.toLocaleString()}</td>`;
@@ -3213,10 +3201,6 @@ function renderOIChanges(){
       h += `<td class="${pOiChg5d>0?'pos':'neg'}">${pOiChg5d>0?'+':''}${pOiChg5d.toLocaleString()}</td>`;
       h += `<td style="color:var(--put)">${pVolMtd.toLocaleString()}</td>`;
       h += `<td class="${pOiChgMtd>0?'pos':'neg'}">${pOiChgMtd>0?'+':''}${pOiChgMtd.toLocaleString()}</td>`;
-      h += `<td style="color:var(--put)">${pIv!=null&&pIv>0?(pIv*100).toFixed(1)+'%':''}</td>`;
-      h += `<td class="${pIvChg1d==null||pIvChg1d===0?'zero':(pIvChg1d>0?'pos':'neg')}">${pIvChg1d!=null&&pIvChg1d!==0?((pIvChg1d>0?'+':'')+(pIvChg1d*100).toFixed(1)+'%'):''}</td>`;
-      h += `<td class="${pIvChg5d==null||pIvChg5d===0?'zero':(pIvChg5d>0?'pos':'neg')}">${pIvChg5d!=null&&pIvChg5d!==0?((pIvChg5d>0?'+':'')+(pIvChg5d*100).toFixed(1)+'%'):''}</td>`;
-      h += `<td class="${pIvChgMtd==null||pIvChgMtd===0?'zero':(pIvChgMtd>0?'pos':'neg')}">${pIvChgMtd!=null&&pIvChgMtd!==0?((pIvChgMtd>0?'+':'')+(pIvChgMtd*100).toFixed(1)+'%'):''}</td>`;
 
       h += '</tr>';
     });
@@ -3225,16 +3209,17 @@ function renderOIChanges(){
   }
 
   // Build side-by-side layout
-  let html = '<div style="display:flex;gap:10px;align-items:flex-start">';
-  html += '<div style="flex:1;min-width:0">';
+  // Wrap on smaller screens / wide tables to avoid overlap
+  let html = '<div style="display:flex;gap:10px;align-items:flex-start;flex-wrap:wrap">';
+  html += '<div style="flex:1 1 640px;min-width:520px;max-width:100%">';
   html += `<div style="font-size:11px;color:var(--atm);font-weight:700;margin-bottom:5px;text-align:center">${EXP_LBL[exp1]||exp1} · F=${F1.toFixed(2)}</div>`;
-  html += buildExpiryTable(exp1, F1);
+  html += `<div style="overflow:auto;max-width:100%">${buildExpiryTable(exp1, F1)}</div>`;
   html += '</div>';
 
   if(exp2) {
-    html += '<div style="flex:1;min-width:0">';
+    html += '<div style="flex:1 1 640px;min-width:520px;max-width:100%">';
     html += `<div style="font-size:11px;color:var(--atm);font-weight:700;margin-bottom:5px;text-align:center">${EXP_LBL[exp2]||exp2} · F=${F2.toFixed(2)}</div>`;
-    html += buildExpiryTable(exp2, F2);
+    html += `<div style="overflow:auto;max-width:100%">${buildExpiryTable(exp2, F2)}</div>`;
     html += '</div>';
   }
 
@@ -3359,8 +3344,10 @@ function renderPortfolioTable(){
 
   // Total row
   h += `<tr style="border-top:2px solid var(--border);font-weight:700;background:rgba(88,166,255,.08)">`;
-  h += `<td colspan="7">PORTFOLIO TOTAL</td>`;
-  h += `<td>—</td>`;
+  // Keep totals aligned with header columns (Expiry..Premium)
+  h += `<td colspan="6">PORTFOLIO TOTAL</td>`;
+  h += `<td>—</td>`; // Mark
+  h += `<td>—</td>`; // IV%
   h += `<td>${totalDelta.toFixed(2)}</td>`;
   h += `<td>${totalGamma.toFixed(4)}</td>`;
   h += `<td>${totalTheta.toFixed(2)}</td>`;
@@ -3436,7 +3423,8 @@ function runStressTest(){
     h += `<td style="color:${leg.side==='long'?'var(--pos)':'var(--neg)'}">${leg.side.toUpperCase()}</td>`;
     h += `<td>${leg.lots}</td><td style="color:${leg.cp==='C'?'var(--call)':'var(--put)'}">${leg.cp}</td>`;
     h += `<td>${leg.strike}</td><td>${leg.premium.toFixed(2)}</td>`;
-    h += `<td>${Fstress.toFixed(2)}</td><td>${ivChg>0?'+':''}${ivChg.toFixed(1)}pp</td><td>${daysFwd}d</td>`;
+    const dF = (Fstress - Fbase);
+    h += `<td>${(dF>0?'+':'')}${dF.toFixed(2)}</td><td>${ivChg>0?'+':''}${ivChg.toFixed(1)}pp</td><td>${daysFwd}d</td>`;
     h += `<td class="${stressedPL>=0?'pos':'neg'}">${stressedPL>=0?'+':''}${stressedPL.toFixed(2)}</td>`;
     h += `<td class="${priceEff>=0?'pos':'neg'}">${priceEff>=0?'+':''}${priceEff.toFixed(2)}</td>`;
     h += `<td class="${ivEff>=0?'pos':'neg'}">${ivEff>=0?'+':''}${ivEff.toFixed(2)}</td>`;
@@ -3446,7 +3434,8 @@ function runStressTest(){
 
   // Total row
   h += `<tr style="border-top:2px solid var(--border);font-weight:700;background:rgba(88,166,255,.08)">`;
-  h += `<td colspan="8">PORTFOLIO TOTAL</td>`;
+  // Keep totals aligned: span through "Days" column
+  h += `<td colspan="9">PORTFOLIO TOTAL</td>`;
   h += `<td class="${totalStressed>=0?'pos':'neg'}">${totalStressed>=0?'+':''}${totalStressed.toFixed(2)}</td>`;
   h += `<td class="${totalPriceEff>=0?'pos':'neg'}">${totalPriceEff>=0?'+':''}${totalPriceEff.toFixed(2)}</td>`;
   h += `<td class="${totalIVEff>=0?'pos':'neg'}">${totalIVEff>=0?'+':''}${totalIVEff.toFixed(2)}</td>`;
