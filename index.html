@@ -3957,6 +3957,16 @@ function runStrategy(){
 // ═══════════════════ OPTIONS MONTHLY SUMMARY TAB ═══════════════════
 
 function renderOIChanges(){
+  // If CSV loaded into `days{}` but `latestDate` wasn't set yet (timing),
+  // derive it from available dates.
+  if(!latestDate){
+    const _sd=Object.keys(days||{}).sort();
+    if(_sd.length){
+      latestDate=_sd[_sd.length-1];
+      prevDate=_sd[_sd.length-2]||null;
+      weekDate=_sd[0]||null;
+    }
+  }
   if(!latestDate){document.getElementById('oic-wrap').innerHTML='<div class="empty">Load CSV data to see Options Monthly Summary.</div>';return;}
 
   const dd = days[latestDate];
@@ -3991,20 +4001,57 @@ function renderOIChanges(){
   // Get all dates sorted
   const sortedDates = Object.keys(days).sort();
   const todayIdx = sortedDates.indexOf(latestDate);
-  const prevDate = sortedDates[todayIdx-1] || null;
+  const prevDate2 = sortedDates[todayIdx-1] || null;
   const day5Date = sortedDates[Math.max(0, todayIdx-5)] || null;
-  const monthStart = latestDate.substring(0, 8) + '01';
-  const mtdDates = sortedDates.filter(d => d >= monthStart && d <= latestDate);
+  // MTD here means "to-date since the first available date" (not calendar month).
+  const mtdDates = sortedDates.slice(0, todayIdx + 1);
+  const mtdStartDate = mtdDates[0] || null;
 
-  // Build table for one expiry
+  function _fmtInt(x){ return (x||0).toLocaleString(); }
+  function _fmtSignedInt(x){ return x?`${x>0?'+':''}${x.toLocaleString()}`:''; }
+  function _fmtIV(iv){ return (iv!=null&&isFinite(iv)) ? `${(iv*100).toFixed(1)}%` : '—'; }
+  function _fmtIVChg(d){ return (d!=null&&isFinite(d)) ? `${d>0?'+':''}${(d*100).toFixed(1)}pp` : '—'; }
+  function _clsSigned(x){ return !x?'zero':(x>0?'pos':'neg'); }
+  function _clsIV(iv){
+    if(iv==null||!isFinite(iv)) return 'zero';
+    const p=iv*100;
+    return p>30?'iv-r':p>22?'iv-a':'iv-g';
+  }
+
+  function getIVSide(dayData, exp, K, side, dateKey){
+    if(!dayData) return null;
+    const dk=dateKey||latestDate;
+    const F=getFutPrice(exp,dk);
+    const T=getT(exp,dk);
+    if(!F||F<=0||!T||T<=0) return null;
+    const rec = side==='calls'
+      ? dayData.calls?.[exp]?.[K]
+      : dayData.puts?.[exp]?.[K];
+    const mkt = rec?.price;
+    if(!mkt || mkt<0.005) return null;
+    return calcIV(F, K, T, R, mkt, side==='calls');
+  }
+
+  function sumVolOverDates(side, exp, K, dateKeys){
+    if(!dateKeys?.length) return 0;
+    let t=0;
+    for(const dt of dateKeys){
+      const d=days[dt];
+      t += (side==='calls'
+        ? (d?.calls?.[exp]?.[K]?.vol||0)
+        : (d?.puts?.[exp]?.[K]?.vol||0)
+      );
+    }
+    return t;
+  }
+
   function buildExpiryTable(exp, F) {
     const calls = dd.calls?.[exp] || {};
     const puts = dd.puts?.[exp] || {};
     const allStrikes = new Set([...Object.keys(calls), ...Object.keys(puts)].map(Number));
 
-    // Filter: ±20 from ATM AND (OI≥1000 OR Vol≥500)
     const byDist = [...allStrikes].sort((a,b) => Math.abs(a-F) - Math.abs(b-F));
-    const nearATM = new Set(byDist.slice(0, 41)); // ±20 from ATM
+    const nearATM = new Set(byDist.slice(0, 41));
 
     const validStrikes = [...allStrikes].filter(s => {
       const c = calls[s] || {}, p = puts[s] || {};
@@ -4016,33 +4063,40 @@ function renderOIChanges(){
     if(!validStrikes.length) return '<div class="empty">No strikes meet criteria.</div>';
 
     let h = '<table style="font-size:9px">';
-    // Header: Calls (left) | Strike (center) | Puts (right)
     h += '<thead><tr>';
-    h += '<th colspan="5" style="color:var(--call);text-align:center;font-size:10px;background:rgba(79,142,247,.1)">CALLS</th>';
+    h += '<th colspan="11" style="color:var(--call);text-align:center;font-size:10px;background:rgba(79,142,247,.1)">CALLS</th>';
     h += '<th class="sk" style="font-size:10px">Strike</th>';
-    h += '<th colspan="5" style="color:var(--put);text-align:center;font-size:10px;background:rgba(224,93,93,.1)">PUTS</th>';
+    h += '<th colspan="11" style="color:var(--put);text-align:center;font-size:10px;background:rgba(224,93,93,.1)">PUTS</th>';
     h += '</tr><tr>';
-    // Call columns
     h += '<th style="color:var(--call);font-size:9px">OI</th>';
     h += '<th style="color:var(--call);font-size:9px">Vol</th>';
     h += '<th style="color:var(--call);font-size:9px">OI Δ1D</th>';
     h += '<th style="color:var(--call);font-size:9px">Vol 5D</th>';
     h += '<th style="color:var(--call);font-size:9px">OI Δ5D</th>';
-    // Strike
+    h += '<th style="color:var(--call);font-size:9px">Vol MTD</th>';
+    h += '<th style="color:var(--call);font-size:9px">OI ΔMTD</th>';
+    h += '<th style="color:var(--call);font-size:9px">IV%</th>';
+    h += '<th style="color:var(--call);font-size:9px">IV Δ1D</th>';
+    h += '<th style="color:var(--call);font-size:9px">IV Δ5D</th>';
+    h += '<th style="color:var(--call);font-size:9px">IV ΔMTD</th>';
     h += '<th class="sk" style="font-size:9px"></th>';
-    // Put columns
     h += '<th style="color:var(--put);font-size:9px">OI</th>';
     h += '<th style="color:var(--put);font-size:9px">Vol</th>';
     h += '<th style="color:var(--put);font-size:9px">OI Δ1D</th>';
     h += '<th style="color:var(--put);font-size:9px">Vol 5D</th>';
     h += '<th style="color:var(--put);font-size:9px">OI Δ5D</th>';
+    h += '<th style="color:var(--put);font-size:9px">Vol MTD</th>';
+    h += '<th style="color:var(--put);font-size:9px">OI ΔMTD</th>';
+    h += '<th style="color:var(--put);font-size:9px">IV%</th>';
+    h += '<th style="color:var(--put);font-size:9px">IV Δ1D</th>';
+    h += '<th style="color:var(--put);font-size:9px">IV Δ5D</th>';
+    h += '<th style="color:var(--put);font-size:9px">IV ΔMTD</th>';
     h += '</tr></thead><tbody>';
 
     validStrikes.forEach(K => {
       const isATM = Math.abs(K-F) < 0.5;
       h += `<tr${isATM?' class="atm"':''}>`;
 
-      // CALL side (left)
       const cRec = calls[K] || {};
       const cOi = cRec.oi || 0;
       const cVol = cRec.vol || 0;
@@ -4058,17 +4112,32 @@ function renderOIChanges(){
         }
       }
       const cOiChg5d = cOi - cOi5dStart;
+      const cVolMtd = sumVolOverDates('calls', exp, K, mtdDates);
+      const cOiMtdStart = (mtdStartDate && days[mtdStartDate]) ? (days[mtdStartDate].calls?.[exp]?.[K]?.oi||0) : 0;
+      const cOiChgMtd = cOi - cOiMtdStart;
 
-      h += `<td style="color:var(--call)">${cOi.toLocaleString()}</td>`;
-      h += `<td style="color:var(--call)">${cVol.toLocaleString()}</td>`;
-      h += `<td class="${cOiChg>0?'pos':'neg'}">${cOiChg>0?'+':''}${cOiChg.toLocaleString()}</td>`;
-      h += `<td style="color:var(--call)">${cVol5d.toLocaleString()}</td>`;
-      h += `<td class="${cOiChg5d>0?'pos':'neg'}">${cOiChg5d>0?'+':''}${cOiChg5d.toLocaleString()}</td>`;
+      const civ = getIVSide(dd, exp, K, 'calls', latestDate);
+      const civ1d = prevDate2 ? getIVSide(days[prevDate2], exp, K, 'calls', prevDate2) : null;
+      const civ5d = day5Date ? getIVSide(days[day5Date], exp, K, 'calls', day5Date) : null;
+      const civmtd = mtdStartDate ? getIVSide(days[mtdStartDate], exp, K, 'calls', mtdStartDate) : null;
+      const dCiv1d = (civ!=null && civ1d!=null) ? (civ - civ1d) : null;
+      const dCiv5d = (civ!=null && civ5d!=null) ? (civ - civ5d) : null;
+      const dCivMtd = (civ!=null && civmtd!=null) ? (civ - civmtd) : null;
 
-      // STRIKE (center)
+      h += `<td style="color:var(--call)">${_fmtInt(cOi)}</td>`;
+      h += `<td style="color:var(--call)">${_fmtInt(cVol)}</td>`;
+      h += `<td class="${_clsSigned(cOiChg)}">${_fmtSignedInt(cOiChg)}</td>`;
+      h += `<td style="color:var(--call)">${_fmtInt(cVol5d)}</td>`;
+      h += `<td class="${_clsSigned(cOiChg5d)}">${_fmtSignedInt(cOiChg5d)}</td>`;
+      h += `<td style="color:var(--call)">${_fmtInt(cVolMtd)}</td>`;
+      h += `<td class="${_clsSigned(cOiChgMtd)}">${_fmtSignedInt(cOiChgMtd)}</td>`;
+      h += `<td class="${_clsIV(civ)}">${_fmtIV(civ)}</td>`;
+      h += `<td class="${dCiv1d==null?'zero':(dCiv1d>0?'neg':'pos')}">${_fmtIVChg(dCiv1d)}</td>`;
+      h += `<td class="${dCiv5d==null?'zero':(dCiv5d>0?'neg':'pos')}">${_fmtIVChg(dCiv5d)}</td>`;
+      h += `<td class="${dCivMtd==null?'zero':(dCivMtd>0?'neg':'pos')}">${_fmtIVChg(dCivMtd)}</td>`;
+
       h += `<td class="sk">${K}${isATM?'<span class="atm-tag">ATM</span>':''}</td>`;
 
-      // PUT side (right)
       const pRec = puts[K] || {};
       const pOi = pRec.oi || 0;
       const pVol = pRec.vol || 0;
@@ -4084,12 +4153,29 @@ function renderOIChanges(){
         }
       }
       const pOiChg5d = pOi - pOi5dStart;
+      const pVolMtd = sumVolOverDates('puts', exp, K, mtdDates);
+      const pOiMtdStart = (mtdStartDate && days[mtdStartDate]) ? (days[mtdStartDate].puts?.[exp]?.[K]?.oi||0) : 0;
+      const pOiChgMtd = pOi - pOiMtdStart;
 
-      h += `<td style="color:var(--put)">${pOi.toLocaleString()}</td>`;
-      h += `<td style="color:var(--put)">${pVol.toLocaleString()}</td>`;
-      h += `<td class="${pOiChg>0?'pos':'neg'}">${pOiChg>0?'+':''}${pOiChg.toLocaleString()}</td>`;
-      h += `<td style="color:var(--put)">${pVol5d.toLocaleString()}</td>`;
-      h += `<td class="${pOiChg5d>0?'pos':'neg'}">${pOiChg5d>0?'+':''}${pOiChg5d.toLocaleString()}</td>`;
+      const piv = getIVSide(dd, exp, K, 'puts', latestDate);
+      const piv1d = prevDate2 ? getIVSide(days[prevDate2], exp, K, 'puts', prevDate2) : null;
+      const piv5d = day5Date ? getIVSide(days[day5Date], exp, K, 'puts', day5Date) : null;
+      const pivmtd = mtdStartDate ? getIVSide(days[mtdStartDate], exp, K, 'puts', mtdStartDate) : null;
+      const dPiv1d = (piv!=null && piv1d!=null) ? (piv - piv1d) : null;
+      const dPiv5d = (piv!=null && piv5d!=null) ? (piv - piv5d) : null;
+      const dPivMtd = (piv!=null && pivmtd!=null) ? (piv - pivmtd) : null;
+
+      h += `<td style="color:var(--put)">${_fmtInt(pOi)}</td>`;
+      h += `<td style="color:var(--put)">${_fmtInt(pVol)}</td>`;
+      h += `<td class="${_clsSigned(pOiChg)}">${_fmtSignedInt(pOiChg)}</td>`;
+      h += `<td style="color:var(--put)">${_fmtInt(pVol5d)}</td>`;
+      h += `<td class="${_clsSigned(pOiChg5d)}">${_fmtSignedInt(pOiChg5d)}</td>`;
+      h += `<td style="color:var(--put)">${_fmtInt(pVolMtd)}</td>`;
+      h += `<td class="${_clsSigned(pOiChgMtd)}">${_fmtSignedInt(pOiChgMtd)}</td>`;
+      h += `<td class="${_clsIV(piv)}">${_fmtIV(piv)}</td>`;
+      h += `<td class="${dPiv1d==null?'zero':(dPiv1d>0?'neg':'pos')}">${_fmtIVChg(dPiv1d)}</td>`;
+      h += `<td class="${dPiv5d==null?'zero':(dPiv5d>0?'neg':'pos')}">${_fmtIVChg(dPiv5d)}</td>`;
+      h += `<td class="${dPivMtd==null?'zero':(dPivMtd>0?'neg':'pos')}">${_fmtIVChg(dPivMtd)}</td>`;
 
       h += '</tr>';
     });
@@ -4097,7 +4183,6 @@ function renderOIChanges(){
     return h;
   }
 
-  // Build side-by-side layout
   let html = '<div style="display:flex;gap:10px;align-items:flex-start">';
   html += '<div style="flex:1;min-width:0">';
   html += `<div style="font-size:11px;color:var(--atm);font-weight:700;margin-bottom:5px;text-align:center">${EXP_LBL[exp1]||exp1} · F=${F1.toFixed(2)}</div>`;
