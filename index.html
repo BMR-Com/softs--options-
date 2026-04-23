@@ -9,6 +9,16 @@
 // ═══════════════════ OPTIONS MONTHLY SUMMARY TAB ═══════════════════
 
 function renderOIChanges(){
+  // Be robust: if CSV loaded into `days{}` but `latestDate` wasn't set yet (timing),
+  // derive it from the available dates.
+  if(!latestDate){
+    const _sd=Object.keys(days||{}).sort();
+    if(_sd.length){
+      latestDate=_sd[_sd.length-1];
+      prevDate=_sd[_sd.length-2]||null;
+      weekDate=_sd[0]||null;
+    }
+  }
   if(!latestDate){document.getElementById('oic-wrap').innerHTML='<div class="empty">Load CSV data to see Options Monthly Summary.</div>';return;}
 
   const dd = days[latestDate];
@@ -2940,7 +2950,7 @@ function showSec(id,el){
   if(id==='strategy')initStrategy();
   if(id==='volsmile')renderVolSmile();
   if(id==='sentiment')renderSentiment();
-  if(id==='oichanges'&&latestDate)renderOIChanges();
+  if(id==='oichanges')renderOIChanges();
   if(id==='portfolio')initPortfolio();
 }
 function setTab(tab,btn){
