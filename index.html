@@ -2924,6 +2924,10 @@ function renderAll(){
   if(sumSec.classList.contains('on'))renderSummary();
   const sentSec=document.getElementById('sec-sentiment');
   if(sentSec.classList.contains('on'))renderSentiment();
+  const oicSec=document.getElementById('sec-oichanges');
+  if(oicSec&&oicSec.classList.contains('on'))renderOIChanges();
+  const portSec=document.getElementById('sec-portfolio');
+  if(portSec&&portSec.classList.contains('on')){ initPortfolio(); renderPortfolioTable&&renderPortfolioTable(); }
 }
 
 // ═══════════════════ NAV ═══════════════════
