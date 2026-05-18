@@ -3095,6 +3095,7 @@ function runStrategy(){
 
 
 // ═══════════════════ OPTIONS MONTHLY SUMMARY ═══════════════════
+// ═══════════════════ OPTIONS MONTHLY SUMMARY ═══════════════════
 function renderOIChanges(){
   if(!latestDate){document.getElementById('oic-wrap').innerHTML='<div class="empty">Load CSV data to see Options Monthly Summary.</div>';return;}
   const dd=days[latestDate];
@@ -3102,23 +3103,39 @@ function renderOIChanges(){
   const sel1=document.getElementById('oic-exp1');
   const sel2=document.getElementById('oic-exp2');
   const minOI=Math.max(0,parseInt(document.getElementById('oic-min')?.value,10)||1000);
-  const minVol=Math.max(0,Math.round(minOI/2));
+
+  // ── Save user selections BEFORE rebuilding innerHTML ──
+  const saved1=sel1.value;
+  const saved2=sel2.value;
+
   sel1.innerHTML=exps.map(e=>`<option value="${e}">${EXP_LBL[e]||e}</option>`).join('');
   sel2.innerHTML='<option value="">-- Select --</option>'+exps.map(e=>`<option value="${e}">${EXP_LBL[e]||e}</option>`).join('');
-  const expVolumes=exps.map(e=>{
-    const cVol=Object.values(dd.calls?.[e]||{}).reduce((a,r)=>a+(r.vol||0),0);
-    const pVol=Object.values(dd.puts?.[e]||{}).reduce((a,r)=>a+(r.vol||0),0);
-    return{e,vol:cVol+pVol};
-  }).sort((a,b)=>b.vol-a.vol);
-  const prev1=sel1.value;
-  if(!prev1||!exps.includes(prev1))sel1.value=expVolumes[0]?.e||exps[0];
-  const prev2=sel2.value;
-  if(!prev2||!exps.includes(prev2))sel2.value=expVolumes[1]?.e||exps[1]||'';
+
+  // ── Restore saved selection if valid; otherwise auto-pick by volume ──
+  if(saved1&&exps.includes(saved1)){
+    sel1.value=saved1;
+  } else {
+    const byVol=exps.map(e=>{
+      const cVol=Object.values(dd.calls?.[e]||{}).reduce((a,r)=>a+(r.vol||0),0);
+      const pVol=Object.values(dd.puts?.[e]||{}).reduce((a,r)=>a+(r.vol||0),0);
+      return{e,vol:cVol+pVol};
+    }).sort((a,b)=>b.vol-a.vol);
+    sel1.value=byVol[0]?.e||exps[0]||'';
+  }
+
+  if(saved2&&exps.includes(saved2)){
+    sel2.value=saved2;
+  } else {
+    sel2.value='';
+  }
+
   const exp1=sel1.value;
   const exp2=sel2.value;
   if(!exp1)return;
+
   const F1=getFutPrice(exp1,latestDate)||futPrices[exp1]||guessATM(dd,[exp1],latestDate)||70;
   const F2=exp2?(getFutPrice(exp2,latestDate)||futPrices[exp2]||guessATM(dd,[exp2],latestDate)||70):null;
+
   const sortedDates=Object.keys(days).sort();
   const todayIdx=sortedDates.indexOf(latestDate);
   const prevDate_=sortedDates[todayIdx-1]||null;
@@ -3131,63 +3148,95 @@ function renderOIChanges(){
     const calls=dd.calls?.[exp]||{};
     const puts=dd.puts?.[exp]||{};
     const allStrikes=new Set([...Object.keys(calls),...Object.keys(puts)].map(Number));
-    const byDist=[...allStrikes].sort((a,b)=>Math.abs(a-F)-Math.abs(b-F));
-    const nearATM=new Set(byDist.slice(0,41));
+
+    // ── Show ALL strikes where OI >= minOI (either side), no ATM proximity limit ──
     const validStrikes=[...allStrikes].filter(s=>{
-      const c=calls[s]||{},p=puts[s]||{};
-      return nearATM.has(s)&&((c.oi||0)+(p.oi||0)>=minOI||(c.vol||0)+(p.vol||0)>=minVol);
-    }).sort((a,b)=>b-a);
-    if(!validStrikes.length)return'<div class="empty">No strikes meet criteria.</div>';
+      const cOI=(calls[s]?.oi||0);
+      const pOI=(puts[s]?.oi||0);
+      return(cOI>=minOI||pOI>=minOI);
+    }).sort((a,b)=>b-a); // highest strike first
+
+    if(!validStrikes.length)return`<div class="empty" style="padding:20px">No strikes with OI &ge; ${minOI.toLocaleString()} in ${EXP_LBL[exp]||exp}.</div>`;
+
     let h='<table style="font-size:9px"><thead><tr>';
     h+='<th colspan="11" style="color:var(--call);text-align:center;font-size:10px;background:rgba(79,142,247,.1)">CALLS</th>';
     h+='<th class="sk" style="font-size:10px">Strike</th>';
     h+='<th colspan="7" style="color:var(--put);text-align:center;font-size:10px;background:rgba(224,93,93,.1)">PUTS</th>';
     h+='</tr><tr>';
-    ['OI','Vol','OI D1D','Vol 5D','OI D5D','Vol MTD','OI DMTD','IV%','IV D1D','IV D5D','IV DMTD'].forEach(c=>h+=`<th style="color:var(--call);font-size:9px">${c}</th>`);
+    ['OI','Vol','OI 1D','Vol 5D','OI 5D','Vol MTD','OI MTD','IV%','IV 1D','IV 5D','IV MTD'].forEach(c=>h+=`<th style="color:var(--call);font-size:9px">${c}</th>`);
     h+='<th class="sk" style="font-size:9px"></th>';
-    ['OI','Vol','OI D1D','Vol 5D','OI D5D','Vol MTD','OI DMTD'].forEach(c=>h+=`<th style="color:var(--put);font-size:9px">${c}</th>`);
+    ['OI','Vol','OI 1D','Vol 5D','OI 5D','Vol MTD','OI MTD'].forEach(c=>h+=`<th style="color:var(--put);font-size:9px">${c}</th>`);
     h+='</tr></thead><tbody>';
+
     validStrikes.forEach(K=>{
       const isATM=Math.abs(K-F)<0.5;
       h+=`<tr${isATM?' class="atm"':''}>`;
-      const cRec=calls[K]||{},pRec=puts[K]||{};
-      const cOi=cRec.oi||0,cVol=cRec.vol||0,cOiChg=cRec.oiChange||0;
-      const pOi=pRec.oi||0,pVol=pRec.vol||0,pOiChg=pRec.oiChange||0;
+
+      // ── Call side ──
+      const cRec=calls[K]||{};
+      const pRec=puts[K]||{};
+      const cOi=cRec.oi||0, cVol=cRec.vol||0, cOiChg=cRec.oiChange||0;
+      const pOi=pRec.oi||0, pVol=pRec.vol||0, pOiChg=pRec.oiChange||0;
+
+      // 5-day
       let cVol5d=0,cOi5s=0,pVol5d=0,pOi5s=0;
       if(day5Date&&days[day5Date]){
         cOi5s=days[day5Date].calls?.[exp]?.[K]?.oi||0;
         pOi5s=days[day5Date].puts?.[exp]?.[K]?.oi||0;
-        for(let i=Math.max(0,todayIdx-5);i<=todayIdx;i++){const d=days[sortedDates[i]];if(d){cVol5d+=d.calls?.[exp]?.[K]?.vol||0;pVol5d+=d.puts?.[exp]?.[K]?.vol||0;}}
+        for(let i=Math.max(0,todayIdx-5);i<=todayIdx;i++){
+          const d=days[sortedDates[i]];
+          if(d){cVol5d+=d.calls?.[exp]?.[K]?.vol||0;pVol5d+=d.puts?.[exp]?.[K]?.vol||0;}
+        }
       }
+
+      // MTD
       let cVolMtd=0,cOiMs=0,pVolMtd=0,pOiMs=0;
-      if(mtdStartDate&&days[mtdStartDate]){cOiMs=days[mtdStartDate].calls?.[exp]?.[K]?.oi||0;pOiMs=days[mtdStartDate].puts?.[exp]?.[K]?.oi||0;}
-      if(mtdDates.length){for(const dStr of mtdDates){const d=days[dStr];if(d){cVolMtd+=d.calls?.[exp]?.[K]?.vol||0;pVolMtd+=d.puts?.[exp]?.[K]?.vol||0;}}}
+      if(mtdStartDate&&days[mtdStartDate]){
+        cOiMs=days[mtdStartDate].calls?.[exp]?.[K]?.oi||0;
+        pOiMs=days[mtdStartDate].puts?.[exp]?.[K]?.oi||0;
+      }
+      if(mtdDates.length){
+        for(const dStr of mtdDates){
+          const d=days[dStr];
+          if(d){cVolMtd+=d.calls?.[exp]?.[K]?.vol||0;pVolMtd+=d.puts?.[exp]?.[K]?.vol||0;}
+        }
+      }
+
+      // IV
       const cIv=avgIV(exp,K,dd,latestDate);
       const cIvP=prevDate_&&days[prevDate_]?avgIV(exp,K,days[prevDate_],prevDate_):null;
       const cIv5=day5Date&&days[day5Date]?avgIV(exp,K,days[day5Date],day5Date):null;
       const cIvM=mtdStartDate&&days[mtdStartDate]?avgIV(exp,K,days[mtdStartDate],mtdStartDate):null;
+
+      // Helpers
       const cc=v=>v>0?'pos':v<0?'neg':'zero';
       const fmt=v=>v?(v>0?'+':'')+Math.round(v).toLocaleString():'';
       const fmtIV=v=>v!=null&&v>0?(v*100).toFixed(1)+'%':'';
       const fmtIC=v=>v!=null&&v!==0?((v>0?'+':'')+(v*100).toFixed(1)+'%'):'';
-      h+=`<td style="color:var(--call)">${cOi.toLocaleString()}</td>`;
-      h+=`<td style="color:var(--call)">${cVol.toLocaleString()}</td>`;
+
+      // Call columns
+      h+=`<td style="color:var(--call);font-weight:${cOi>=minOI?'700':'400'}">${cOi.toLocaleString()}</td>`;
+      h+=`<td style="color:var(--call)">${cVol?cVol.toLocaleString():''}</td>`;
       h+=`<td class="${cc(cOiChg)}">${fmt(cOiChg)}</td>`;
-      h+=`<td style="color:var(--call)">${cVol5d.toLocaleString()}</td>`;
+      h+=`<td style="color:var(--call)">${cVol5d?cVol5d.toLocaleString():''}</td>`;
       h+=`<td class="${cc(cOi-cOi5s)}">${fmt(cOi-cOi5s)}</td>`;
-      h+=`<td style="color:var(--call)">${cVolMtd.toLocaleString()}</td>`;
+      h+=`<td style="color:var(--call)">${cVolMtd?cVolMtd.toLocaleString():''}</td>`;
       h+=`<td class="${cc(cOi-cOiMs)}">${fmt(cOi-cOiMs)}</td>`;
       h+=`<td class="iv-${cIv?(cIv*100>30?'r':cIv*100>22?'a':'g'):'zero'}">${fmtIV(cIv)}</td>`;
       h+=`<td class="${cIv&&cIvP?cc(cIv-cIvP):'zero'}">${fmtIC(cIv&&cIvP?cIv-cIvP:null)}</td>`;
       h+=`<td class="${cIv&&cIv5?cc(cIv-cIv5):'zero'}">${fmtIC(cIv&&cIv5?cIv-cIv5:null)}</td>`;
       h+=`<td class="${cIv&&cIvM?cc(cIv-cIvM):'zero'}">${fmtIC(cIv&&cIvM?cIv-cIvM:null)}</td>`;
+
+      // Strike
       h+=`<td class="sk">${K}${isATM?'<span class="atm-tag">ATM</span>':''}</td>`;
-      h+=`<td style="color:var(--put)">${pOi.toLocaleString()}</td>`;
-      h+=`<td style="color:var(--put)">${pVol.toLocaleString()}</td>`;
+
+      // Put columns
+      h+=`<td style="color:var(--put);font-weight:${pOi>=minOI?'700':'400'}">${pOi.toLocaleString()}</td>`;
+      h+=`<td style="color:var(--put)">${pVol?pVol.toLocaleString():''}</td>`;
       h+=`<td class="${cc(pOiChg)}">${fmt(pOiChg)}</td>`;
-      h+=`<td style="color:var(--put)">${pVol5d.toLocaleString()}</td>`;
+      h+=`<td style="color:var(--put)">${pVol5d?pVol5d.toLocaleString():''}</td>`;
       h+=`<td class="${cc(pOi-pOi5s)}">${fmt(pOi-pOi5s)}</td>`;
-      h+=`<td style="color:var(--put)">${pVolMtd.toLocaleString()}</td>`;
+      h+=`<td style="color:var(--put)">${pVolMtd?pVolMtd.toLocaleString():''}</td>`;
       h+=`<td class="${cc(pOi-pOiMs)}">${fmt(pOi-pOiMs)}</td>`;
       h+='</tr>';
     });
@@ -3196,11 +3245,17 @@ function renderOIChanges(){
   }
 
   let html='<div style="display:flex;gap:10px;align-items:flex-start;flex-wrap:wrap">';
-  html+=`<div style="flex:1 1 640px;min-width:520px;max-width:100%"><div style="font-size:11px;color:var(--atm);font-weight:700;margin-bottom:5px;text-align:center">${EXP_LBL[exp1]||exp1} &middot; F=${F1.toFixed(2)}</div><div style="overflow:auto;max-width:100%">${buildExpiryTable(exp1,F1)}</div></div>`;
-  if(exp2){html+=`<div style="flex:1 1 640px;min-width:520px;max-width:100%"><div style="font-size:11px;color:var(--atm);font-weight:700;margin-bottom:5px;text-align:center">${EXP_LBL[exp2]||exp2} &middot; F=${F2.toFixed(2)}</div><div style="overflow:auto;max-width:100%">${buildExpiryTable(exp2,F2)}</div></div>`;}
+  html+=`<div style="flex:1 1 640px;min-width:520px;max-width:100%">`;
+  html+=`<div style="font-size:11px;color:var(--atm);font-weight:700;margin-bottom:5px;text-align:center">${EXP_LBL[exp1]||exp1} &middot; F=${F1.toFixed(2)} &middot; showing OI &ge; ${minOI.toLocaleString()}</div>`;
+  html+=`<div style="overflow:auto;max-width:100%">${buildExpiryTable(exp1,F1)}</div></div>`;
+  if(exp2){
+    html+=`<div style="flex:1 1 640px;min-width:520px;max-width:100%">`;
+    html+=`<div style="font-size:11px;color:var(--atm);font-weight:700;margin-bottom:5px;text-align:center">${EXP_LBL[exp2]||exp2} &middot; F=${F2.toFixed(2)} &middot; showing OI &ge; ${minOI.toLocaleString()}</div>`;
+    html+=`<div style="overflow:auto;max-width:100%">${buildExpiryTable(exp2,F2)}</div></div>`;
+  }
   html+='</div>';
   document.getElementById('oic-wrap').innerHTML=html;
-  setSB(`Options Monthly Summary &middot; ${EXP_LBL[exp1]||exp1}${exp2?' + '+(EXP_LBL[exp2]||exp2):''} &middot; F=${F1.toFixed(2)}`);
+  setSB(`Options Monthly Summary &middot; ${EXP_LBL[exp1]||exp1}${exp2?' + '+(EXP_LBL[exp2]||exp2):''} &middot; OI &ge; ${minOI.toLocaleString()}`);
 }
 
 
