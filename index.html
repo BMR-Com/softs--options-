@@ -216,6 +216,7 @@ tr.atm .sk{background:rgba(240,180,41,.22)!important;color:var(--atm)!important}
   <div class="nav-tab" onclick="showSec('greeks',this)">Δ Greeks</div>
   <div class="nav-tab" onclick="showSec('pricer',this)">◎ Live Pricer</div>
   <div class="nav-tab" onclick="showSec('strategy',this)">⟁ Strategy Builder</div>
+  <div class="nav-tab" onclick="showSec('stratlab',this)">⚗ Strategy Lab</div>
   <div class="nav-tab" onclick="showSec('volsmile',this)">〜 Vol Smile</div>
   <div class="nav-tab" onclick="showSec('sentiment',this)">◈ Sentiment</div>
 <div class="nav-tab" onclick="showSec('oichanges',this)">◉ Options Monthly Summary</div>
@@ -393,6 +394,131 @@ tr.atm .sk{background:rgba(240,180,41,.22)!important;color:var(--atm)!important}
       <div class="cgrid" style="grid-template-columns:1fr 1fr">
         <div class="ccard"><div class="ctitle">Delta Profile</div><div class="cwrap" style="height:180px"><canvas id="ch-st-delta"></canvas></div></div>
         <div class="ccard"><div class="ctitle">Gamma Profile</div><div class="cwrap" style="height:180px"><canvas id="ch-st-gamma"></canvas></div></div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- STRATEGY LAB SECTION -->
+<style>
+.lab-slider{-webkit-appearance:none;appearance:none;height:4px;border-radius:2px;background:var(--bg4);outline:none;flex:1;cursor:pointer}
+.lab-slider::-webkit-slider-thumb{-webkit-appearance:none;appearance:none;width:13px;height:13px;border-radius:50%;background:var(--blue);border:2px solid var(--bg);cursor:pointer}
+.lab-slider::-moz-range-thumb{width:13px;height:13px;border-radius:50%;background:var(--blue);border:2px solid var(--bg);cursor:pointer}
+.lab-slider.amber::-webkit-slider-thumb{background:var(--atm)}
+.lab-slider.amber::-moz-range-thumb{background:var(--atm)}
+.lab-slider.green::-webkit-slider-thumb{background:var(--green)}
+.lab-slider.green::-moz-range-thumb{background:var(--green)}
+.lab-slider.mini{height:3px}
+.lab-slider.mini::-webkit-slider-thumb{width:10px;height:10px}
+.lab-slider.mini::-moz-range-thumb{width:9px;height:9px}
+.lab-inp{background:var(--bg3);border:0.5px solid var(--border2);border-radius:4px;color:var(--text);font-family:'Courier New',monospace;font-size:10px;padding:3px 6px;text-align:right}
+.lab-sel{background:var(--bg3);border:0.5px solid var(--border2);border-radius:4px;color:var(--text);font-family:'Courier New',monospace;font-size:9px;padding:3px 5px}
+.lab-leg{background:var(--bg3);border:0.5px solid var(--border);border-radius:5px;padding:6px 7px;display:flex;flex-direction:column;gap:5px}
+.lab-leg-row{display:flex;gap:5px;align-items:center;flex-wrap:wrap;font-size:9px}
+.lab-lbl{font-size:8px;color:var(--text3);text-transform:uppercase;letter-spacing:.05em}
+.lab-stat{display:flex;flex-direction:column;gap:2px;min-width:86px}
+.lab-stat-l{font-size:8px;color:var(--text3);text-transform:uppercase;letter-spacing:.06em}
+.lab-stat-v{font-size:12px;font-weight:700}
+.lab-tbtn{background:var(--bg3);border:0.5px solid var(--border2);border-radius:3px;color:var(--text2);font-family:'Courier New',monospace;font-size:8px;padding:3px 6px;cursor:pointer;letter-spacing:.04em}
+.lab-tbtn:hover{border-color:var(--blue);color:var(--blue)}
+</style>
+<div class="sec" id="sec-stratlab">
+  <div style="padding:10px 14px;display:grid;grid-template-columns:370px 1fr;gap:12px;align-items:start">
+    <!-- LEFT -->
+    <div>
+      <div style="background:var(--bg2);border:0.5px solid var(--border);border-radius:6px;padding:10px;margin-bottom:10px">
+        <div class="scard-title">Contract & Market</div>
+        <div style="display:flex;flex-direction:column;gap:7px;font-size:9px">
+          <div style="display:flex;gap:7px;align-items:center">
+            <span class="fp-lbl" style="min-width:88px">Commodity</span>
+            <select id="lab-preset" class="lab-sel" onchange="labApplyPreset()">
+              <option value="500">Cotton CT ($500/pt)</option>
+              <option value="375">Coffee KC ($375/pt)</option>
+              <option value="1120">Sugar SB ($1,120/pt)</option>
+              <option value="10">Cocoa CC ($10/pt)</option>
+              <option value="50">Corn/Wheat/Soy ($50/pt)</option>
+              <option value="1000">Crude CL ($1,000/pt)</option>
+              <option value="100">Gold GC ($100/pt)</option>
+              <option value="10000">NatGas NG ($10,000/pt)</option>
+              <option value="custom">Custom</option>
+            </select>
+            <input id="lab-mult" type="number" class="lab-inp" value="500" step="1" style="width:70px" oninput="runLab()" title="$ per 1.00 point per contract">
+          </div>
+          <div style="display:flex;gap:7px;align-items:center">
+            <span class="fp-lbl" style="min-width:88px">Fut Ref Price</span>
+            <input id="lab-F" type="number" class="lab-inp" step="0.01" placeholder="e.g. 70.00" style="width:80px;border-color:var(--amber);color:var(--atm)" oninput="labBoundsDirty=true;runLab()">
+            <span class="fp-lbl">Rate %</span>
+            <input id="lab-rate" type="number" class="lab-inp" value="4.3" step="0.1" style="width:52px" oninput="runLab()">
+          </div>
+          <div style="display:flex;gap:7px;align-items:center">
+            <span class="fp-lbl" style="min-width:88px">Chart Range ±%</span>
+            <input id="lab-range" type="number" class="lab-inp" value="18" min="3" max="60" step="1" style="width:52px" oninput="labBoundsDirty=true;runLab()">
+            <span class="fp-lbl">Show P&L</span>
+            <select id="lab-unit" class="lab-sel" onchange="runLab()">
+              <option value="usd">$ total</option>
+              <option value="pts">Points</option>
+            </select>
+          </div>
+          <div style="display:flex;gap:7px;align-items:center">
+            <span class="fp-lbl" style="min-width:88px">Default DTE</span>
+            <input id="lab-dte" type="number" class="lab-inp" value="60" min="1" step="1" style="width:52px" oninput="labBoundsDirty=true">
+            <span style="color:var(--text3);font-size:8px">used for new legs (each leg has own DTE)</span>
+          </div>
+        </div>
+      </div>
+      <div style="background:var(--bg2);border:0.5px solid var(--border);border-radius:6px;padding:10px;margin-bottom:10px">
+        <div class="scard-title">Quick Templates <span style="color:var(--text3);font-weight:400;text-transform:none;font-size:8px">(built around Fut Ref, IV auto-priced)</span></div>
+        <div style="display:flex;gap:4px;flex-wrap:wrap" id="lab-templates"></div>
+      </div>
+      <div style="background:var(--bg2);border:0.5px solid var(--border);border-radius:6px;padding:10px">
+        <div class="scard-title">Strategy Legs</div>
+        <div id="lab-legs" style="display:flex;flex-direction:column;gap:6px;margin-bottom:8px"></div>
+        <div style="display:flex;gap:6px">
+          <button onclick="addLabLeg('opt')" style="flex:1;background:var(--bg3);border:0.5px dashed var(--border2);border-radius:4px;color:var(--blue);font-family:'Courier New',monospace;font-size:9px;padding:5px;cursor:pointer">+ Option Leg</button>
+          <button onclick="addLabLeg('fut')" style="flex:1;background:var(--bg3);border:0.5px dashed var(--border2);border-radius:4px;color:var(--atm);font-family:'Courier New',monospace;font-size:9px;padding:5px;cursor:pointer">+ Futures Leg</button>
+        </div>
+        <div style="font-size:8px;color:var(--text3);margin-top:6px;line-height:1.5">Premium & strikes in price points. <span style="color:var(--blue)">IV←P</span> implies vol from entered premium · <span style="color:var(--atm)">P←IV</span> reprices premium from IV. Per-leg vol slider tilts that strike's vol (vp).</div>
+      </div>
+    </div>
+    <!-- RIGHT -->
+    <div>
+      <!-- SLIDERS -->
+      <div style="background:var(--bg2);border:0.5px solid var(--border);border-radius:6px;padding:10px 14px;margin-bottom:10px">
+        <div class="scard-title">Scenario Sliders</div>
+        <div style="display:flex;flex-direction:column;gap:9px">
+          <div style="display:flex;gap:10px;align-items:center">
+            <span class="lab-lbl" style="min-width:110px">Days Elapsed (t+n)</span>
+            <input id="lab-sl-days" type="range" class="lab-slider" min="0" max="60" step="1" value="0" oninput="runLab()">
+            <span id="lab-sl-days-v" style="font-size:10px;color:var(--blue);font-weight:700;min-width:150px;text-align:right">t+0 · 60d to front exp</span>
+          </div>
+          <div style="display:flex;gap:10px;align-items:center">
+            <span class="lab-lbl" style="min-width:110px">Vol Shift (all legs)</span>
+            <input id="lab-sl-vol" type="range" class="lab-slider green" min="-20" max="20" step="0.5" value="0" oninput="runLab()">
+            <span id="lab-sl-vol-v" style="font-size:10px;color:var(--green);font-weight:700;min-width:150px;text-align:right">+0.0 vp</span>
+          </div>
+          <div style="display:flex;gap:10px;align-items:center">
+            <span class="lab-lbl" style="min-width:110px">Eval Futures Price</span>
+            <input id="lab-sl-F" type="range" class="lab-slider amber" min="50" max="90" step="0.05" value="70" oninput="runLab()">
+            <span id="lab-sl-F-v" style="font-size:10px;color:var(--atm);font-weight:700;min-width:150px;text-align:right">70.00</span>
+          </div>
+        </div>
+      </div>
+      <!-- READOUT -->
+      <div style="background:var(--bg2);border:0.5px solid var(--border);border-radius:6px;padding:10px 14px;margin-bottom:10px;display:flex;gap:18px;flex-wrap:wrap" id="lab-readout"></div>
+      <!-- P&L CHART -->
+      <div class="ccard" style="margin-bottom:10px">
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px">
+          <div class="ctitle">P&L Profile — <span style="color:var(--blue)">t+n (revalued)</span> vs <span style="color:var(--atm)">front expiry</span> vs <span style="color:var(--text3)">t+0</span></div>
+          <div style="font-size:9px;color:var(--text3)" id="lab-be"></div>
+        </div>
+        <div class="cwrap" style="height:300px"><canvas id="ch-lab-pnl"></canvas></div>
+      </div>
+      <!-- GREEKS -->
+      <div class="cgrid" style="grid-template-columns:1fr 1fr;margin-bottom:10px">
+        <div class="ccard"><div class="ctitle">Delta Profile (t+n)</div><div class="cwrap" style="height:170px"><canvas id="ch-lab-delta"></canvas></div></div>
+        <div class="ccard"><div class="ctitle">Gamma Profile (t+n)</div><div class="cwrap" style="height:170px"><canvas id="ch-lab-gamma"></canvas></div></div>
+        <div class="ccard"><div class="ctitle">Vega Profile (t+n, per vol pt)</div><div class="cwrap" style="height:170px"><canvas id="ch-lab-vega"></canvas></div></div>
+        <div class="ccard"><div class="ctitle">Theta Profile (t+n, per day)</div><div class="cwrap" style="height:170px"><canvas id="ch-lab-theta"></canvas></div></div>
       </div>
     </div>
   </div>
@@ -2082,6 +2208,7 @@ function showSec(id,el){
   if(id==='greeks')renderGreeks();
   if(id==='pricer')initPricer();
   if(id==='strategy')initStrategy();
+  if(id==='stratlab')initStratLab();
   if(id==='volsmile')renderVolSmile();
   if(id==='sentiment')renderSentiment();
   if(id==='oichanges'&&latestDate)renderOIChanges();
@@ -3584,6 +3711,270 @@ function initPortfolio(){
   onPortCommChange();
   renderPortfolioLegs();
   if(portfolioLegs.length){ renderPortfolioTable(); runStressTest(); }
+}
+
+// ═══════════════════ STRATEGY LAB — standalone multi-commodity strategy analyzer ═══════════════════
+let labLegs=[];            // {kind:'opt'|'fut', pc:'C'|'P', dir:±1, qty, strike, prem, iv, dte, vsh} | {kind:'fut', dir, qty, entry}
+let labBoundsDirty=true;   // recompute price-slider bounds when F/range/DTE change
+let labInit=false;
+
+function φpdf(x){return Math.exp(-.5*x*x)/Math.sqrt(2*Math.PI);}
+// Black-76 price + greeks. vega per 1 vol point, theta per day.
+function b76G(F,K,T,r,sig,call){
+  if(T<=1e-7||sig<=0){
+    const intr=call?Math.max(F-K,0):Math.max(K-F,0);
+    const d=call?(F>K?1:0):(F<K?-1:0);
+    return{price:intr,delta:d,gamma:0,vega:0,theta:0};
+  }
+  const sq=Math.sqrt(T),d1=(Math.log(F/K)+.5*sig*sig*T)/(sig*sq),d2=d1-sig*sq,disc=Math.exp(-r*T);
+  const price=call?disc*(F*Φ(d1)-K*Φ(d2)):disc*(K*Φ(-d2)-F*Φ(-d1));
+  const delta=call?disc*Φ(d1):disc*(Φ(d1)-1);
+  const gamma=disc*φpdf(d1)/(F*sig*sq);
+  const vega=F*disc*φpdf(d1)*sq/100;
+  const theta=(r*price-disc*F*φpdf(d1)*sig/(2*sq))/365;
+  return{price,delta,gamma,vega,theta};
+}
+
+function labApplyPreset(){
+  const v=document.getElementById('lab-preset').value;
+  if(v!=='custom')document.getElementById('lab-mult').value=v;
+  runLab();
+}
+
+function labDefaults(){
+  // seed Fut Ref from loaded data if available
+  const fEl=document.getElementById('lab-F');
+  if(!fEl.value){
+    let seeded=false;
+    try{
+      if(latestDate&&days[latestDate]){
+        const exps=getActiveExp(days[latestDate]);
+        const f=getFutPrice(exps[0],latestDate);
+        if(f){fEl.value=f.toFixed(2);seeded=true;}
+      }
+    }catch(e){}
+    if(!seeded)fEl.value='70.00';
+  }
+}
+
+function addLabLeg(kind){
+  const F=+document.getElementById('lab-F').value||70;
+  const dte=+document.getElementById('lab-dte').value||60;
+  if(kind==='fut'){labLegs.push({kind:'fut',dir:1,qty:1,entry:+F.toFixed(2)});}
+  else{
+    const K=Math.round(F);
+    const leg={kind:'opt',pc:'C',dir:1,qty:1,strike:K,iv:25,dte,vsh:0,prem:0};
+    leg.prem=+labPriceLeg(leg,F).toFixed(2);
+    labLegs.push(leg);
+  }
+  labBoundsDirty=true;renderLabLegs();runLab();
+}
+function labPriceLeg(leg,F){
+  const r=(+document.getElementById('lab-rate').value||0)/100;
+  return b76G(F,leg.strike,leg.dte/365,r,leg.iv/100,leg.pc==='C').price;
+}
+function labImplyIV(i){
+  const leg=labLegs[i];if(!leg||leg.kind!=='opt')return;
+  const F=+document.getElementById('lab-F').value||0;
+  const r=(+document.getElementById('lab-rate').value||0)/100;
+  const iv=calcIV(F,leg.strike,leg.dte/365,r,leg.prem,leg.pc==='C');
+  if(iv){leg.iv=+(iv*100).toFixed(1);renderLabLegs();runLab();}
+  else setSB('Strategy Lab: could not imply IV from that premium (check F/strike/DTE).');
+}
+function labRepriceLeg(i){
+  const leg=labLegs[i];if(!leg||leg.kind!=='opt')return;
+  const F=+document.getElementById('lab-F').value||0;
+  leg.prem=+labPriceLeg(leg,F).toFixed(3);
+  renderLabLegs();runLab();
+}
+
+const LAB_TEMPLATES=[
+  {n:'Long Call',f:(F,s)=>[o('C',1,1,F)]},
+  {n:'Long Put',f:(F,s)=>[o('P',1,1,F)]},
+  {n:'Bull Call Sprd',f:(F,s)=>[o('C',1,1,F),o('C',-1,1,F+2*s)]},
+  {n:'Bear Put Sprd',f:(F,s)=>[o('P',1,1,F),o('P',-1,1,F-2*s)]},
+  {n:'Straddle',f:(F,s)=>[o('C',1,1,F),o('P',1,1,F)]},
+  {n:'Strangle',f:(F,s)=>[o('C',1,1,F+2*s),o('P',1,1,F-2*s)]},
+  {n:'Call Fly',f:(F,s)=>[o('C',1,1,F-2*s),o('C',-1,2,F),o('C',1,1,F+2*s)]},
+  {n:'Put Tree 1×3×2',f:(F,s)=>[o('P',1,1,F),o('P',-1,3,F-2*s),o('P',1,2,F-4*s)]},
+  {n:'Risk Reversal',f:(F,s)=>[o('C',1,1,F+2*s),o('P',-1,1,F-2*s)]},
+  {n:'Collar + Long Fut',f:(F,s)=>[{kind:'fut',dir:1,qty:1,entry:F},o('P',1,1,F-2*s),o('C',-1,1,F+3*s)]},
+];
+function o(pc,dir,qty,K){return{kind:'opt',pc,dir,qty,strike:Math.round(K*4)/4,iv:25,vsh:0,prem:0};}
+function labLoadTemplate(idx){
+  const F=+document.getElementById('lab-F').value||70;
+  const dte=+document.getElementById('lab-dte').value||60;
+  const s=Math.max(0.25,+(F*0.02).toFixed(2)); // ~2% strike spacing
+  labLegs=LAB_TEMPLATES[idx].f(F,s).map(l=>{
+    if(l.kind==='opt'){l.dte=dte;l.prem=+labPriceLeg(l,F).toFixed(3);}
+    return l;
+  });
+  labBoundsDirty=true;renderLabLegs();runLab();
+}
+function renderLabTemplates(){
+  document.getElementById('lab-templates').innerHTML=LAB_TEMPLATES.map((t,i)=>`<button class="lab-tbtn" onclick="labLoadTemplate(${i})">${t.n}</button>`).join('');
+}
+
+function renderLabLegs(){
+  const el=document.getElementById('lab-legs');
+  if(!labLegs.length){el.innerHTML='<div style="font-size:9px;color:var(--text3);text-align:center;padding:8px">No legs — add option/futures legs or load a template</div>';return;}
+  el.innerHTML=labLegs.map((l,i)=>{
+    if(l.kind==='fut')return `<div class="lab-leg" style="border-left:2px solid var(--atm)">
+      <div class="lab-leg-row">
+        <span style="color:var(--atm);font-weight:700;min-width:26px">FUT</span>
+        <select class="lab-sel" style="color:${l.dir>0?'var(--pos)':'var(--neg)'}" onchange="labLegs[${i}].dir=+this.value;runLab()">
+          <option value="1"${l.dir>0?' selected':''}>Long</option><option value="-1"${l.dir<0?' selected':''}>Short</option></select>
+        <span class="lab-lbl">Qty</span><input type="number" class="lab-inp" style="width:42px" value="${l.qty}" min="1" step="1" onchange="labLegs[${i}].qty=+this.value||1;runLab()">
+        <span class="lab-lbl">Entry Px</span><input type="number" class="lab-inp" style="width:66px;color:var(--atm)" value="${l.entry}" step="0.01" onchange="labLegs[${i}].entry=+this.value;runLab()">
+        <button onclick="labLegs.splice(${i},1);renderLabLegs();runLab()" style="background:none;border:none;color:var(--neg);cursor:pointer;font-size:13px;margin-left:auto">×</button>
+      </div></div>`;
+    return `<div class="lab-leg" style="border-left:2px solid ${l.pc==='C'?'var(--call)':'var(--put)'}">
+      <div class="lab-leg-row">
+        <select class="lab-sel" style="color:${l.pc==='C'?'var(--call)':'var(--put)'}" onchange="labLegs[${i}].pc=this.value;runLab()">
+          <option value="C"${l.pc==='C'?' selected':''}>Call</option><option value="P"${l.pc==='P'?' selected':''}>Put</option></select>
+        <select class="lab-sel" style="color:${l.dir>0?'var(--pos)':'var(--neg)'}" onchange="labLegs[${i}].dir=+this.value;runLab()">
+          <option value="1"${l.dir>0?' selected':''}>Long</option><option value="-1"${l.dir<0?' selected':''}>Short</option></select>
+        <span class="lab-lbl">Qty</span><input type="number" class="lab-inp" style="width:38px" value="${l.qty}" min="1" step="1" onchange="labLegs[${i}].qty=+this.value||1;runLab()">
+        <span class="lab-lbl">K</span><input type="number" class="lab-inp" style="width:58px;color:var(--atm)" value="${l.strike}" step="0.25" onchange="labLegs[${i}].strike=+this.value;runLab()">
+        <span class="lab-lbl">DTE</span><input type="number" class="lab-inp" style="width:44px" value="${l.dte}" min="1" step="1" onchange="labLegs[${i}].dte=+this.value||1;labBoundsDirty=true;runLab()">
+        <button onclick="labLegs.splice(${i},1);renderLabLegs();runLab()" style="background:none;border:none;color:var(--neg);cursor:pointer;font-size:13px;margin-left:auto">×</button>
+      </div>
+      <div class="lab-leg-row">
+        <span class="lab-lbl">Prem</span><input type="number" class="lab-inp" style="width:60px" value="${l.prem}" step="0.01" onchange="labLegs[${i}].prem=+this.value;runLab()">
+        <span class="lab-lbl">IV%</span><input type="number" class="lab-inp" style="width:50px;color:var(--green)" value="${l.iv}" step="0.1" onchange="labLegs[${i}].iv=+this.value;runLab()">
+        <button class="lab-tbtn" style="color:var(--blue)" onclick="labImplyIV(${i})" title="imply IV from premium">IV←P</button>
+        <button class="lab-tbtn" style="color:var(--atm)" onclick="labRepriceLeg(${i})" title="reprice premium from IV">P←IV</button>
+        <span class="lab-lbl">Vol±</span><input type="range" class="lab-slider mini green" style="width:64px" min="-15" max="15" step="0.5" value="${l.vsh}" oninput="labLegs[${i}].vsh=+this.value;this.nextElementSibling.textContent=(this.value>=0?'+':'')+(+this.value).toFixed(1);runLab()"><span style="font-size:8px;color:var(--green);min-width:28px">${(l.vsh>=0?'+':'')+l.vsh.toFixed(1)}</span>
+      </div></div>`;
+  }).join('');
+}
+
+// value of full strategy at futures price F, with `elapsed` days gone and global vol shift (vp)
+function labStratPnL(F,elapsed,volShift,r,atFrontExpiry){
+  let pnl=0;
+  for(const l of labLegs){
+    if(l.kind==='fut'){pnl+=l.dir*l.qty*(F-l.entry);continue;}
+    const rem=atFrontExpiry?Math.max(0,l.dte-labFrontDTE()):Math.max(0,l.dte-elapsed);
+    const sig=Math.max(0.005,(l.iv+volShift+l.vsh)/100);
+    const v=b76G(F,l.strike,rem/365,r,sig,l.pc==='C').price;
+    pnl+=l.dir*l.qty*(v-l.prem);
+  }
+  return pnl;
+}
+function labStratGreeks(F,elapsed,volShift,r){
+  let d=0,g=0,v=0,t=0;
+  for(const l of labLegs){
+    if(l.kind==='fut'){d+=l.dir*l.qty;continue;}
+    const rem=Math.max(0,l.dte-elapsed);
+    const sig=Math.max(0.005,(l.iv+volShift+l.vsh)/100);
+    const gr=b76G(F,l.strike,rem/365,r,sig,l.pc==='C');
+    d+=l.dir*l.qty*gr.delta;g+=l.dir*l.qty*gr.gamma;v+=l.dir*l.qty*gr.vega;t+=l.dir*l.qty*gr.theta;
+  }
+  return{d,g,v,t};
+}
+function labFrontDTE(){
+  const ds=labLegs.filter(l=>l.kind==='opt').map(l=>l.dte);
+  return ds.length?Math.min(...ds):(+document.getElementById('lab-dte').value||60);
+}
+
+// vertical marker plugin
+const labVLine={id:'labVLine',afterDraw(chart){
+  const x=chart.options.labMarkerX;if(x==null)return;
+  const xs=chart.scales.x,ys=chart.scales.y;if(!xs||!ys)return;
+  const px=xs.getPixelForValue(x);
+  const ctx=chart.ctx;ctx.save();ctx.strokeStyle='rgba(240,180,41,.85)';ctx.setLineDash([4,3]);ctx.lineWidth=1.2;
+  ctx.beginPath();ctx.moveTo(px,ys.top);ctx.lineTo(px,ys.bottom);ctx.stroke();ctx.restore();
+}};
+
+function labChart(id,labels,datasets,markerX,yFmt){
+  if(charts[id]){
+    const c=charts[id];c.data.labels=labels;c.data.datasets=datasets;c.options.labMarkerX=markerX;c.update('none');return;
+  }
+  const ctx=document.getElementById(id).getContext('2d');
+  charts[id]=new Chart(ctx,{type:'line',data:{labels,datasets},plugins:[labVLine],options:{
+    responsive:true,maintainAspectRatio:false,animation:false,labMarkerX:markerX,
+    interaction:{mode:'index',intersect:false},
+    plugins:{legend:{display:datasets.length>1,labels:{color:'#8b949e',font:{size:8,family:"'Courier New',monospace"},boxWidth:9,padding:6}},
+      tooltip:{callbacks:{label:c=>' '+c.dataset.label+': '+(yFmt?yFmt(c.parsed.y):c.parsed.y.toFixed(3))}}},
+    scales:{x:{ticks:{color:'#6e7681',font:{size:7},maxTicksLimit:13},grid:{color:'rgba(48,54,61,.5)'}},
+            y:{ticks:{color:'#6e7681',font:{size:7},callback:v=>yFmt?yFmt(v):v},grid:{color:'rgba(48,54,61,.5)'}}}
+  }});
+}
+
+function runLab(){
+  if(!labInit)return;
+  const F0=+document.getElementById('lab-F').value||0;if(!F0||!labLegs.length){document.getElementById('lab-readout').innerHTML='<span style="font-size:9px;color:var(--text3)">Enter a Fut Ref price and add at least one leg.</span>';return;}
+  const r=(+document.getElementById('lab-rate').value||0)/100;
+  const mult=+document.getElementById('lab-mult').value||1;
+  const unit=document.getElementById('lab-unit').value;
+  const rangePct=(+document.getElementById('lab-range').value||18)/100;
+  const front=labFrontDTE();
+
+  // configure sliders (only when bounds change, so dragging stays smooth)
+  const slD=document.getElementById('lab-sl-days'),slV=document.getElementById('lab-sl-vol'),slF=document.getElementById('lab-sl-F');
+  if(labBoundsDirty){
+    slD.max=front;if(+slD.value>front)slD.value=front;
+    const lo=+(F0*(1-rangePct)).toFixed(2),hi=+(F0*(1+rangePct)).toFixed(2);
+    slF.min=lo;slF.max=hi;slF.step=Math.max(0.01,+((hi-lo)/400).toFixed(2));
+    if(+slF.value<lo||+slF.value>hi)slF.value=F0;
+    labBoundsDirty=false;
+  }
+  const elapsed=+slD.value,volShift=+slV.value,Fm=+slF.value;
+  document.getElementById('lab-sl-days-v').textContent=`t+${elapsed} · ${front-elapsed}d to front exp`;
+  document.getElementById('lab-sl-vol-v').textContent=`${volShift>=0?'+':''}${volShift.toFixed(1)} vp`;
+  document.getElementById('lab-sl-F-v').textContent=Fm.toFixed(2)+` (${((Fm/F0-1)*100).toFixed(1)}%)`;
+
+  // price grid
+  const lo=+slF.min,hi=+slF.max,N=141,step=(hi-lo)/(N-1);
+  const prices=[],labels=[];
+  for(let i=0;i<N;i++){const p=lo+i*step;prices.push(p);labels.push(p.toFixed(2));}
+  const scale=v=>unit==='usd'?v*mult:v;
+  const fmt=v=>unit==='usd'?(v<0?'-':'')+'$'+Math.abs(Math.round(v)).toLocaleString():v.toFixed(2);
+
+  const pnlExp=prices.map(p=>scale(labStratPnL(p,0,volShift,r,true)));
+  const pnlTn =prices.map(p=>scale(labStratPnL(p,elapsed,volShift,r,false)));
+  const pnlT0 =prices.map(p=>scale(labStratPnL(p,0,volShift,r,false)));
+  const gk=prices.map(p=>labStratGreeks(p,elapsed,volShift,r));
+
+  // marker index
+  let mi=0,md=1e18;prices.forEach((p,i)=>{const d=Math.abs(p-Fm);if(d<md){md=d;mi=i;}});
+
+  // breakevens at expiry
+  const bes=[];for(let i=1;i<N;i++){const a=pnlExp[i-1],b=pnlExp[i];if((a<=0&&b>0)||(a>=0&&b<0)){bes.push((prices[i-1]+(0-a)/(b-a)*step).toFixed(2));}}
+  document.getElementById('lab-be').textContent=bes.length?('BE @ expiry: '+bes.join(' / ')):'no breakeven in range';
+
+  // net entry premium (options only), in points and $
+  let netPrem=0;labLegs.forEach(l=>{if(l.kind==='opt')netPrem+=l.dir*l.qty*l.prem;});
+  const gm=gk[mi];
+  const gScale=unit==='usd'?mult:1;
+  const stat=(l,v,c)=>`<div class="lab-stat"><span class="lab-stat-l">${l}</span><span class="lab-stat-v" style="color:${c}">${v}</span></div>`;
+  const pc=v=>v>=0?'var(--pos)':'var(--neg)';
+  document.getElementById('lab-readout').innerHTML=
+    stat('Net Premium',(netPrem>=0?'-':'+')+fmt(Math.abs(scale(netPrem))).replace('-',''),netPrem>=0?'var(--neg)':'var(--pos)')+
+    stat(`P&L @ ${Fm.toFixed(2)} (t+${elapsed})`,fmt(pnlTn[mi]),pc(pnlTn[mi]))+
+    stat(`P&L @ ${Fm.toFixed(2)} (expiry)`,fmt(pnlExp[mi]),pc(pnlExp[mi]))+
+    stat('Delta',(gm.d>=0?'+':'')+gm.d.toFixed(3),pc(gm.d))+
+    stat('Gamma',gm.g.toFixed(4),'var(--amber)')+
+    stat('Vega /vp',fmt(gm.v*gScale),pc(gm.v))+
+    stat('Theta /day',fmt(gm.t*gScale),pc(gm.t));
+
+  labChart('ch-lab-pnl',labels,[
+    {label:`t+${elapsed}`,data:pnlTn,borderColor:'#58a6ff',borderWidth:2,pointRadius:0,fill:{target:'origin',above:'rgba(88,166,255,.06)',below:'rgba(88,166,255,.03)'}},
+    {label:'At front expiry',data:pnlExp,borderColor:'#f0b429',borderWidth:1.6,pointRadius:0,borderDash:[6,4]},
+    {label:'t+0',data:pnlT0,borderColor:'rgba(139,148,158,.55)',borderWidth:1,pointRadius:0,borderDash:[2,3]},
+    {label:'Zero',data:prices.map(()=>0),borderColor:'rgba(100,100,100,.3)',borderWidth:1,pointRadius:0,borderDash:[3,3]}
+  ],mi,fmt);
+  labChart('ch-lab-delta',labels,[{label:'Δ',data:gk.map(g=>g.d),borderColor:'#4fc47a',borderWidth:2,pointRadius:0}],mi,v=>(+v).toFixed(2));
+  labChart('ch-lab-gamma',labels,[{label:'Γ',data:gk.map(g=>g.g),borderColor:'#d29922',borderWidth:2,pointRadius:0}],mi,v=>(+v).toFixed(3));
+  labChart('ch-lab-vega',labels,[{label:'V',data:gk.map(g=>g.v*gScale),borderColor:'#4f8ef7',borderWidth:2,pointRadius:0}],mi,v=>unit==='usd'?'$'+Math.round(v).toLocaleString():(+v).toFixed(3));
+  labChart('ch-lab-theta',labels,[{label:'Θ',data:gk.map(g=>g.t*gScale),borderColor:'#e05d5d',borderWidth:2,pointRadius:0}],mi,v=>unit==='usd'?'$'+Math.round(v).toLocaleString():(+v).toFixed(3));
+}
+
+function initStratLab(){
+  labDefaults();
+  if(!labInit){labInit=true;renderLabTemplates();renderLabLegs();}
+  labBoundsDirty=true;
+  runLab();
 }
 
 </script>
