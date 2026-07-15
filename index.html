@@ -432,15 +432,17 @@ tr.atm .sk{background:rgba(240,180,41,.22)!important;color:var(--atm)!important}
           <div style="display:flex;gap:7px;align-items:center">
             <span class="fp-lbl" style="min-width:88px">Commodity</span>
             <select id="lab-preset" class="lab-sel" onchange="labApplyPreset()">
-              <option value="500">Cotton CT ($500/pt)</option>
-              <option value="375">Coffee KC ($375/pt)</option>
-              <option value="1120">Sugar SB ($1,120/pt)</option>
-              <option value="10">Cocoa CC ($10/pt)</option>
-              <option value="50">Corn/Wheat/Soy ($50/pt)</option>
-              <option value="1000">Crude CL ($1,000/pt)</option>
-              <option value="100">Gold GC ($100/pt)</option>
-              <option value="10000">NatGas NG ($10,000/pt)</option>
-              <option value="custom">Custom</option>
+              <option value="CT">Cotton CT ($500/pt)</option>
+              <option value="KC">Coffee KC ($375/pt)</option>
+              <option value="SB">Sugar SB ($1,120/pt)</option>
+              <option value="CC">Cocoa CC ($10/pt)</option>
+              <option value="ZC">Corn ZC ($50/pt)</option>
+              <option value="ZW">Wheat ZW ($50/pt)</option>
+              <option value="ZS">Soybeans ZS ($50/pt)</option>
+              <option value="CL">Crude CL ($1,000/pt)</option>
+              <option value="GC">Gold GC ($100/pt)</option>
+              <option value="NG">NatGas NG ($10,000/pt)</option>
+              <option value="CUSTOM">Custom (manual DTE)</option>
             </select>
             <input id="lab-mult" type="number" class="lab-inp" value="500" step="1" style="width:70px" oninput="runLab()" title="$ per 1.00 point per contract">
           </div>
@@ -460,9 +462,8 @@ tr.atm .sk{background:rgba(240,180,41,.22)!important;color:var(--atm)!important}
             </select>
           </div>
           <div style="display:flex;gap:7px;align-items:center">
-            <span class="fp-lbl" style="min-width:88px">Default DTE</span>
-            <input id="lab-dte" type="number" class="lab-inp" value="60" min="1" step="1" style="width:52px" oninput="labBoundsDirty=true">
-            <span style="color:var(--text3);font-size:8px">used for new legs (each leg has own DTE)</span>
+            <span class="fp-lbl" style="min-width:88px">Listed Expiries</span>
+            <span id="lab-exp-info" style="font-size:8px;color:var(--text3);line-height:1.4">—</span>
           </div>
         </div>
       </div>
@@ -477,7 +478,7 @@ tr.atm .sk{background:rgba(240,180,41,.22)!important;color:var(--atm)!important}
           <button onclick="addLabLeg('opt')" style="flex:1;background:var(--bg3);border:0.5px dashed var(--border2);border-radius:4px;color:var(--blue);font-family:'Courier New',monospace;font-size:9px;padding:5px;cursor:pointer">+ Option Leg</button>
           <button onclick="addLabLeg('fut')" style="flex:1;background:var(--bg3);border:0.5px dashed var(--border2);border-radius:4px;color:var(--atm);font-family:'Courier New',monospace;font-size:9px;padding:5px;cursor:pointer">+ Futures Leg</button>
         </div>
-        <div style="font-size:8px;color:var(--text3);margin-top:6px;line-height:1.5">Premium & strikes in price points. <span style="color:var(--blue)">IV←P</span> implies vol from entered premium · <span style="color:var(--atm)">P←IV</span> reprices premium from IV. Per-leg vol slider tilts that strike's vol (vp).</div>
+        <div style="font-size:8px;color:var(--text3);margin-top:6px;line-height:1.5">Expiries are the listed option months for the selected commodity; DTE auto-computed from today to the option LTD. Premium & strikes in price points. <span style="color:var(--blue)">IV←P</span> implies vol from entered premium · <span style="color:var(--atm)">P←IV</span> reprices premium from IV. Per-leg vol slider tilts that strike's vol (vp).</div>
       </div>
     </div>
     <!-- RIGHT -->
@@ -3736,10 +3737,109 @@ function b76G(F,K,T,r,sig,call){
 }
 
 function labApplyPreset(){
-  const v=document.getElementById('lab-preset').value;
-  if(v!=='custom')document.getElementById('lab-mult').value=v;
+  const t=document.getElementById('lab-preset').value;
+  if(LAB_SPECS[t])document.getElementById('lab-mult').value=LAB_SPECS[t].mult;
+  labRebuildExpiries();
   runLab();
 }
+
+// ── Listed option expiry engine — generated from today's date per exchange rules ──
+const LAB_SPECS={
+  CT:{mult:500, cycle:[3,5,7,10,12], serial:[1,9,11]},          // ICE Cotton No.2 (computeLTD)
+  KC:{mult:375, cycle:[3,5,7,9,12], serial:[1,2,4,6,8,10,11]},  // ICE Coffee C incl. serials (computeLTD)
+  SB:{mult:1120,cycle:[3,5,7,10]},                              // ICE Sugar No.11 H,K,N,V (computeLTD)
+  CC:{mult:10,  cycle:[3,5,7,9,12]},                            // ICE Cocoa H,K,N,U,Z
+  ZC:{mult:50,  cycle:[3,5,7,9,12]},                            // CBOT Corn
+  ZW:{mult:50,  cycle:[3,5,7,9,12]},                            // CBOT Wheat
+  ZS:{mult:50,  cycle:[1,3,5,7,8,9,11]},                        // CBOT Soybeans F,H,K,N,Q,U,X
+  CL:{mult:1000,cycle:[1,2,3,4,5,6,7,8,9,10,11,12]},            // NYMEX WTI monthly
+  GC:{mult:100, cycle:[2,4,6,8,10,12]},                         // COMEX Gold G,J,M,Q,V,Z
+  NG:{mult:10000,cycle:[1,2,3,4,5,6,7,8,9,10,11,12]},           // NYMEX Henry Hub monthly
+};
+const LAB_MON=['JAN','FEB','MAR','APR','MAY','JUN','JUL','AUG','SEP','OCT','NOV','DEC'];
+function labToday(){const d=new Date();return`${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;}
+function labLastBD(yr,mon){ // last business day of yr/mon (1-12)
+  let d=new Date(yr,mon,0); // last calendar day
+  let s=d.toISOString().slice(0,10);
+  while(!isBusinessDay(s))s=prevBusinessDay(s);
+  return s;
+}
+// Option LTD per commodity for contract month mon/yr — exchange rules
+function labOptLTD(ticker,mon,yr){
+  const key=LAB_MON[mon-1]+String(yr%100).padStart(2,'0');
+  if(ticker==='CT'||ticker==='KC'||ticker==='SB'){
+    const hc=COMMODITIES[ticker]&&COMMODITIES[ticker].ltd&&COMMODITIES[ticker].ltd[key];
+    return hc||computeLTD(key,ticker);
+  }
+  const pm=mon===1?12:mon-1, py=mon===1?yr-1:yr; // month preceding contract month
+  if(ticker==='CC'){ // first Friday of preceding month
+    let d=nthWeekday(py,pm,5,1); while(!isBusinessDay(d))d=prevBusinessDay(d); return d;
+  }
+  if(ticker==='ZC'||ticker==='ZW'||ticker==='ZS'){
+    // last Friday preceding last business day of prior month by ≥2 business days
+    const lbd=labLastBD(py,pm);
+    let d=addBusinessDays(lbd,-2);
+    let dt=new Date(d+'T00:00:00'); while(dt.getDay()!==5)dt.setDate(dt.getDate()-1);
+    let s=dt.toISOString().slice(0,10); while(!isBusinessDay(s))s=prevBusinessDay(s);
+    return s;
+  }
+  if(ticker==='CL'){
+    // fut LTD: 3 bd prior to 25th of preceding month (or bd before the 25th if 25th not a bd); opt: 3 bd before fut
+    let ref=`${py}-${String(pm).padStart(2,'0')}-25`;
+    if(!isBusinessDay(ref))ref=prevBusinessDay(ref);
+    const futLTD=addBusinessDays(ref,-3);
+    return addBusinessDays(futLTD,-3);
+  }
+  if(ticker==='GC'){ // 4 bd prior to last business day of preceding month
+    return addBusinessDays(labLastBD(py,pm),-4);
+  }
+  if(ticker==='NG'){ // fut: 3 bd prior to 1st of delivery month; opt: 1 bd before fut
+    const day1=`${yr}-${String(mon).padStart(2,'0')}-01`;
+    const futLTD=addBusinessDays(day1,-3);
+    return addBusinessDays(futLTD,-1);
+  }
+  return null;
+}
+let labExpList=[]; // [{key,lbl,ltd,dte}]
+function labRebuildExpiries(){
+  const ticker=document.getElementById('lab-preset').value;
+  const today=labToday();
+  labExpList=[];
+  if(LAB_SPECS[ticker]){
+    const spec=LAB_SPECS[ticker];
+    const months=[...spec.cycle,...(spec.serial||[])];
+    const now=new Date();
+    for(let off=0;off<=26&&labExpList.length<16;off++){
+      const yr=now.getFullYear()+Math.floor((now.getMonth()+off)/12);
+      const mon=(now.getMonth()+off)%12+1;
+      if(!months.includes(mon))continue;
+      const ltd=labOptLTD(ticker,mon,yr);
+      if(!ltd||ltd<today)continue;
+      const dte=Math.max(1,Math.round((new Date(ltd+'T00:00:00')-new Date(today+'T00:00:00'))/86400000));
+      labExpList.push({key:LAB_MON[mon-1]+String(yr%100).padStart(2,'0'),lbl:`${LAB_MON[mon-1]} ${String(yr%100).padStart(2,'0')}`,ltd,dte});
+    }
+    labExpList.sort((a,b)=>a.dte-b.dte);
+  }
+  // remap existing option legs onto new list
+  labLegs.forEach(l=>{
+    if(l.kind!=='opt')return;
+    if(l.exp==='CUSTOM')return; // keep manual DTE
+    const hit=labExpList.find(e=>e.key===l.exp);
+    if(hit){l.dte=hit.dte;}
+    else if(labExpList.length){ // nearest by dte, else front
+      let best=labExpList[0],bd=1e9;
+      labExpList.forEach(e=>{const d=Math.abs(e.dte-(l.dte||e.dte));if(d<bd){bd=d;best=e;}});
+      l.exp=best.key;l.dte=best.dte;
+    } else {l.exp='CUSTOM';l.dte=l.dte||60;}
+  });
+  const info=document.getElementById('lab-exp-info');
+  info.innerHTML=labExpList.length
+    ?`as of <span style="color:var(--text2)">${today}</span> · front <span style="color:var(--atm)">${labExpList[0].lbl}</span> (LTD ${labExpList[0].ltd}, ${labExpList[0].dte}d) · ${labExpList.length} listed`
+    :`custom mode — enter DTE manually per leg`;
+  labBoundsDirty=true;
+  renderLabLegs();
+}
+function labFrontExp(){return labExpList.length?labExpList[0]:{key:'CUSTOM',lbl:'CUSTOM',dte:60};}
 
 function labDefaults(){
   // seed Fut Ref from loaded data if available
@@ -3759,11 +3859,11 @@ function labDefaults(){
 
 function addLabLeg(kind){
   const F=+document.getElementById('lab-F').value||70;
-  const dte=+document.getElementById('lab-dte').value||60;
   if(kind==='fut'){labLegs.push({kind:'fut',dir:1,qty:1,entry:+F.toFixed(2)});}
   else{
+    const fe=labFrontExp();
     const K=Math.round(F);
-    const leg={kind:'opt',pc:'C',dir:1,qty:1,strike:K,iv:25,dte,vsh:0,prem:0};
+    const leg={kind:'opt',pc:'C',dir:1,qty:1,strike:K,iv:25,exp:fe.key,dte:fe.dte,vsh:0,prem:0};
     leg.prem=+labPriceLeg(leg,F).toFixed(2);
     labLegs.push(leg);
   }
@@ -3803,10 +3903,10 @@ const LAB_TEMPLATES=[
 function o(pc,dir,qty,K){return{kind:'opt',pc,dir,qty,strike:Math.round(K*4)/4,iv:25,vsh:0,prem:0};}
 function labLoadTemplate(idx){
   const F=+document.getElementById('lab-F').value||70;
-  const dte=+document.getElementById('lab-dte').value||60;
+  const fe=labFrontExp();
   const s=Math.max(0.25,+(F*0.02).toFixed(2)); // ~2% strike spacing
   labLegs=LAB_TEMPLATES[idx].f(F,s).map(l=>{
-    if(l.kind==='opt'){l.dte=dte;l.prem=+labPriceLeg(l,F).toFixed(3);}
+    if(l.kind==='opt'){l.exp=fe.key;l.dte=fe.dte;l.prem=+labPriceLeg(l,F).toFixed(3);}
     return l;
   });
   labBoundsDirty=true;renderLabLegs();runLab();
@@ -3828,6 +3928,7 @@ function renderLabLegs(){
         <span class="lab-lbl">Entry Px</span><input type="number" class="lab-inp" style="width:66px;color:var(--atm)" value="${l.entry}" step="0.01" onchange="labLegs[${i}].entry=+this.value;runLab()">
         <button onclick="labLegs.splice(${i},1);renderLabLegs();runLab()" style="background:none;border:none;color:var(--neg);cursor:pointer;font-size:13px;margin-left:auto">×</button>
       </div></div>`;
+    const expOpts=labExpList.map(e=>`<option value="${e.key}"${l.exp===e.key?' selected':''}>${e.lbl} · ${e.dte}d</option>`).join('')+`<option value="CUSTOM"${l.exp==='CUSTOM'?' selected':''}>Custom</option>`;
     return `<div class="lab-leg" style="border-left:2px solid ${l.pc==='C'?'var(--call)':'var(--put)'}">
       <div class="lab-leg-row">
         <select class="lab-sel" style="color:${l.pc==='C'?'var(--call)':'var(--put)'}" onchange="labLegs[${i}].pc=this.value;runLab()">
@@ -3836,8 +3937,14 @@ function renderLabLegs(){
           <option value="1"${l.dir>0?' selected':''}>Long</option><option value="-1"${l.dir<0?' selected':''}>Short</option></select>
         <span class="lab-lbl">Qty</span><input type="number" class="lab-inp" style="width:38px" value="${l.qty}" min="1" step="1" onchange="labLegs[${i}].qty=+this.value||1;runLab()">
         <span class="lab-lbl">K</span><input type="number" class="lab-inp" style="width:58px;color:var(--atm)" value="${l.strike}" step="0.25" onchange="labLegs[${i}].strike=+this.value;runLab()">
-        <span class="lab-lbl">DTE</span><input type="number" class="lab-inp" style="width:44px" value="${l.dte}" min="1" step="1" onchange="labLegs[${i}].dte=+this.value||1;labBoundsDirty=true;runLab()">
         <button onclick="labLegs.splice(${i},1);renderLabLegs();runLab()" style="background:none;border:none;color:var(--neg);cursor:pointer;font-size:13px;margin-left:auto">×</button>
+      </div>
+      <div class="lab-leg-row">
+        <span class="lab-lbl">Expiry</span>
+        <select class="lab-sel" style="color:var(--text)" onchange="labSetLegExp(${i},this.value)">${expOpts}</select>
+        ${l.exp==='CUSTOM'
+          ?`<span class="lab-lbl">DTE</span><input type="number" class="lab-inp" style="width:46px" value="${l.dte}" min="1" step="1" onchange="labLegs[${i}].dte=+this.value||1;labBoundsDirty=true;runLab()">`
+          :`<span style="font-size:8px;color:var(--text3)">LTD ${(labExpList.find(e=>e.key===l.exp)||{}).ltd||'—'}</span>`}
       </div>
       <div class="lab-leg-row">
         <span class="lab-lbl">Prem</span><input type="number" class="lab-inp" style="width:60px" value="${l.prem}" step="0.01" onchange="labLegs[${i}].prem=+this.value;runLab()">
@@ -3872,9 +3979,15 @@ function labStratGreeks(F,elapsed,volShift,r){
   }
   return{d,g,v,t};
 }
+function labSetLegExp(i,key){
+  const l=labLegs[i];if(!l)return;
+  l.exp=key;
+  if(key!=='CUSTOM'){const e=labExpList.find(x=>x.key===key);if(e)l.dte=e.dte;}
+  labBoundsDirty=true;renderLabLegs();runLab();
+}
 function labFrontDTE(){
   const ds=labLegs.filter(l=>l.kind==='opt').map(l=>l.dte);
-  return ds.length?Math.min(...ds):(+document.getElementById('lab-dte').value||60);
+  return ds.length?Math.min(...ds):labFrontExp().dte;
 }
 
 // vertical marker plugin
@@ -3972,7 +4085,15 @@ function runLab(){
 
 function initStratLab(){
   labDefaults();
-  if(!labInit){labInit=true;renderLabTemplates();renderLabLegs();}
+  if(!labInit){
+    labInit=true;
+    // default the preset to whatever commodity is active in the terminal
+    if(LAB_SPECS[activeCommodity]){document.getElementById('lab-preset').value=activeCommodity;document.getElementById('lab-mult').value=LAB_SPECS[activeCommodity].mult;}
+    renderLabTemplates();
+    labRebuildExpiries();
+  } else {
+    labRebuildExpiries(); // refresh DTEs in case date rolled / expiry passed
+  }
   labBoundsDirty=true;
   runLab();
 }
