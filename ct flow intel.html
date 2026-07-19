@@ -1,0 +1,870 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>CT Flow Intelligence — Options & Futures</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@500;600;700&family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
+<style>
+:root{
+  --bg:#101418; --panel:#171d24; --panel2:#1c242d; --line:#242e39;
+  --ink:#e8e4d8; --muted:#8b93a1; --dim:#5c6570;
+  --buy:#3fb68b; --sell:#e05252; --gold:#d9a441; --blue:#5b8dd6;
+  --mono:'IBM Plex Mono',ui-monospace,SFMono-Regular,Menlo,monospace;
+  --disp:'Barlow Condensed',Arial Narrow,sans-serif;
+}
+*{box-sizing:border-box;margin:0;padding:0}
+html{scroll-behavior:smooth}
+body{background:var(--bg);color:var(--ink);font-family:var(--mono);font-size:13px;line-height:1.5}
+a{color:var(--blue)}
+/* header board */
+header{border-bottom:2px solid var(--gold);background:linear-gradient(180deg,#131920,#101418)}
+.hwrap{max-width:1440px;margin:0 auto;padding:18px 22px 0}
+h1{font-family:var(--disp);font-weight:700;font-size:34px;letter-spacing:.06em;text-transform:uppercase}
+h1 .ct{color:var(--gold)}
+.sub{color:var(--muted);font-size:12px;margin:2px 0 12px;letter-spacing:.02em}
+/* signature tape strip */
+.tape{display:flex;flex-wrap:wrap;gap:0;border-top:1px solid var(--line);margin:0 -22px;padding:8px 22px;background:#0c1014;font-size:12px}
+.tape span{padding:0 14px;border-right:1px solid var(--line);white-space:nowrap}
+.tape span:first-child{padding-left:0}
+.tape b{color:var(--gold);font-weight:600}
+.tape .up{color:var(--buy)} .tape .dn{color:var(--sell)}
+/* tabs */
+.tabs{display:flex;gap:2px;margin-top:0}
+.tab{font-family:var(--disp);font-size:19px;font-weight:600;letter-spacing:.08em;text-transform:uppercase;
+  padding:10px 26px;background:var(--panel);color:var(--muted);cursor:pointer;border:1px solid var(--line);border-bottom:none;user-select:none}
+.tab.active{background:var(--bg);color:var(--ink);border-top:2px solid var(--gold);padding-top:9px}
+main{max-width:1440px;margin:0 auto;padding:20px 22px 60px}
+.view{display:none}.view.active{display:block}
+/* panels */
+.grid{display:grid;gap:16px}
+.g2{grid-template-columns:1fr 1fr}.g3{grid-template-columns:repeat(3,1fr)}
+@media(max-width:980px){.g2,.g3{grid-template-columns:1fr}}
+.panel{background:var(--panel);border:1px solid var(--line);padding:14px 16px 16px;margin-bottom:16px}
+.eyebrow{font-size:10px;letter-spacing:.18em;color:var(--gold);text-transform:uppercase;margin-bottom:2px}
+h2{font-family:var(--disp);font-size:22px;font-weight:600;letter-spacing:.04em;text-transform:uppercase;margin-bottom:10px}
+h3{font-family:var(--disp);font-size:16px;font-weight:600;letter-spacing:.05em;color:var(--muted);text-transform:uppercase;margin:12px 0 6px}
+.note{color:var(--muted);font-size:12px;margin:6px 0}
+.small{font-size:11px;color:var(--dim)}
+/* stat cards */
+.cards{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:10px;margin-bottom:10px}
+.card{background:var(--panel2);border:1px solid var(--line);padding:10px 12px}
+.card .k{font-size:10px;letter-spacing:.12em;color:var(--muted);text-transform:uppercase}
+.card .v{font-size:20px;font-weight:600;margin-top:2px}
+.card .d{font-size:11px;color:var(--dim)}
+.pos{color:var(--buy)}.neg{color:var(--sell)}.gold{color:var(--gold)}
+/* tables */
+table{width:100%;border-collapse:collapse;font-size:12px}
+th{font-size:10px;letter-spacing:.1em;text-transform:uppercase;color:var(--muted);text-align:right;padding:5px 8px;border-bottom:1px solid var(--line);position:sticky;top:0;background:var(--panel)}
+td{padding:4px 8px;text-align:right;border-bottom:1px solid #1b232c;white-space:nowrap}
+th:first-child,td:first-child{text-align:left}
+tr:hover td{background:#1b2530}
+.scroll{max-height:420px;overflow:auto;border:1px solid var(--line)}
+.buy{color:var(--buy)}.sell{color:var(--sell)}
+.badge{display:inline-block;padding:1px 7px;font-size:10px;letter-spacing:.06em;border:1px solid var(--line);color:var(--muted)}
+.badge.b{border-color:var(--buy);color:var(--buy)}.badge.s{border-color:var(--sell);color:var(--sell)}
+.badge.g{border-color:var(--gold);color:var(--gold)}
+/* idea cards */
+.idea{border-left:3px solid var(--gold);background:var(--panel2);padding:12px 14px;margin-bottom:12px}
+.idea h4{font-family:var(--disp);font-size:17px;letter-spacing:.03em;margin-bottom:4px;text-transform:uppercase}
+.idea .score{float:right;color:var(--gold);font-size:12px}
+.idea p{margin:4px 0;font-size:12px;color:#cfcabd}
+.idea .lbl{color:var(--gold);font-size:10px;letter-spacing:.12em;text-transform:uppercase}
+.verdict{padding:8px 12px;border:1px solid var(--line);margin:6px 0;font-size:12px}
+.verdict b:first-child{color:var(--gold)}
+.v-yes{border-left:3px solid var(--buy)}.v-no{border-left:3px solid var(--sell)}.v-mixed{border-left:3px solid var(--gold)}
+/* charts */
+.chartbox{position:relative;height:300px;margin-top:6px}
+.chartbox.tall{height:380px}.chartbox.short{height:220px}
+/* controls */
+.controls{display:flex;flex-wrap:wrap;gap:10px;align-items:center;margin-bottom:14px}
+select,button{background:var(--panel2);color:var(--ink);border:1px solid var(--line);font-family:var(--mono);font-size:12px;padding:6px 10px;cursor:pointer}
+button:hover{border-color:var(--gold)}
+button.primary{border-color:var(--gold);color:var(--gold)}
+#status{font-size:12px;color:var(--muted)}
+#status.err{color:var(--sell)}
+.progress{height:3px;background:var(--line);margin-top:10px;display:none}
+.progress i{display:block;height:100%;background:var(--gold);width:0;transition:width .3s}
+.conv{background:#141a21;border:1px dashed var(--gold);padding:10px 14px;font-size:12px;margin-bottom:16px;color:#d8d2c2}
+.conv b{color:var(--gold)}
+footer{border-top:1px solid var(--line);color:var(--dim);font-size:11px;padding:14px 22px;max-width:1440px;margin:0 auto}
+</style>
+</head>
+<body>
+<header>
+  <div class="hwrap">
+    <h1><span class="ct">CT</span> Flow Intelligence <span style="font-size:18px;color:var(--muted)">/ ICE Cotton No.2 — Options &amp; Futures</span></h1>
+    <div class="sub">Blotter-driven flow analytics · dealer gamma inventory · settlement microstructure · idea engine — data: BMR-Com/softs--options-</div>
+    <div class="tape" id="tape"><span>Loading tape…</span></div>
+    <div class="tabs">
+      <div class="tab active" data-view="opt">Options</div>
+      <div class="tab" data-view="fut">Futures</div>
+    </div>
+  </div>
+</header>
+<main>
+  <div class="controls">
+    <label>Options strip <select id="stripSel"><option>Z26</option></select></label>
+    <label>Futures blotter <select id="futSel"><option>latest 2 files</option><option>full history</option></select></label>
+    <button class="primary" id="reload">Reload data</button>
+    <span id="status">Idle</span>
+  </div>
+  <div class="progress" id="prog"><i></i></div>
+
+  <div class="conv" id="convNote">
+    <b>Aggressor convention (empirically verified on this feed):</b> SetByAsk prints sit ~0.3–0.7 pts <i>below</i> SetByBid prints in the same minute across 28,800+ minute-windows, and daily net-SetByBid volume correlates +0.69 with settle change. Therefore <b>SetByBid = buyer-initiated (at the offer)</b>, <b>SetByAsk = seller-initiated (at the bid)</b>. All signing on this page uses that mapping. Leg prints on options are signed by de-drifted IV re-mark; futures leg/EFP/EFS prints are excluded from signed flow.
+  </div>
+
+  <!-- ============================ OPTIONS VIEW ============================ -->
+  <div class="view active" id="view-opt">
+    <div class="panel">
+      <div class="eyebrow">CT.OPT / FLOW-01</div>
+      <h2>Session flow — traded IV vs settle surface</h2>
+      <div class="note">Each print's implied vol is solved (Black-76, live matched future, real ICE expiry) and compared to the prior settle surface built by cubic-spline through the Bloomberg strike settles (same method as the repo pricer). "vs settle" = traded IV − interpolated prior-settle IV at that strike.</div>
+      <div class="cards" id="optCards"></div>
+      <div class="controls"><label>Show last <select id="optDays"><option>1</option><option selected>3</option><option>5</option><option>10</option><option>all</option></select> session(s)</label>
+      <label><input type="checkbox" id="onlyFirm"> firm-signed prints only</label></div>
+      <div class="scroll" style="max-height:380px"><table id="flowTable"></table></div>
+    </div>
+
+    <div class="grid g2">
+      <div class="panel">
+        <div class="eyebrow">CT.OPT / SKEW-02</div>
+        <h2>Skew impulse by wing</h2>
+        <div class="note">Net customer signed vega ($/vol-pt) and average traded-vs-settle IV by delta bucket, over the shown sessions. Positive vega + positive IV diff = wing being bid.</div>
+        <div class="chartbox short"><canvas id="skewChart"></canvas></div>
+        <div id="skewTable"></div>
+      </div>
+      <div class="panel">
+        <div class="eyebrow">CT.OPT / PKG-03</div>
+        <h2>Reconstructed packages</h2>
+        <div class="note">Prints clustered within 180s in the same strip; risk reversals, spreads, ratios, strangles labeled. Same-way ambiguous legs disambiguated by relative IV re-mark.</div>
+        <div class="scroll" style="max-height:330px"><table id="pkgTable"></table></div>
+      </div>
+    </div>
+
+    <div class="panel">
+      <div class="eyebrow">CT.OPT / GAMMA-04</div>
+      <h2>Dealer gamma inventory map</h2>
+      <div class="note">Bars: open-interest gamma per strike in futures-equivalent lots per 1.00c move (Bloomberg strike gammas × OI). Color = inferred <b>dealer</b> position from cumulative signed customer flow (firm bid/offer prints only) in the blotter since 2026-05-03: customers net <span class="sell">bought</span> a strike → dealer short there (short gamma: expect <b>acceleration + IV bid</b> as spot approaches); customers net <span class="buy">sold</span> → dealer long (long gamma: expect <b>pinning + IV offered</b>). Diamond = current future. Unshaded strikes: OI predates the blotter window — positioning unknown until it trades.</div>
+      <div class="chartbox tall"><canvas id="gammaChart"></canvas></div>
+      <div id="gammaNarr" class="note"></div>
+      <h3>Settlement hedge pressure</h3>
+      <div id="hedgeNote" class="note"></div>
+    </div>
+
+    <div class="grid g2">
+      <div class="panel">
+        <div class="eyebrow">CT.OPT / VOL-05</div>
+        <h2>ATM implied vs realized (TR-adjusted)</h2>
+        <div class="note">ATM IV interpolated at the forward from strike settles; realized vol from Dec-continuation settles, sampled daily and weekly (Trend Ratio &gt; 1 ⇒ grinding trend ⇒ daily RV understates fair vol — Moontower).</div>
+        <div class="chartbox"><canvas id="ivrvChart"></canvas></div>
+        <div class="cards" id="ivrvCards"></div>
+      </div>
+      <div class="panel">
+        <div class="eyebrow">CT.OPT / IDEA-06</div>
+        <h2>Idea engine — options</h2>
+        <div class="note">Rules layer: RR/collar detection → skew percentile → persistence → regime. Each idea carries evidence, trigger, invalidation.</div>
+        <div id="optIdeas"></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ============================ FUTURES VIEW ============================ -->
+  <div class="view" id="view-fut">
+    <div class="panel">
+      <div class="eyebrow">CT.FUT / FLOW-01</div>
+      <h2>Signed outright flow by session</h2>
+      <div class="note">Outright prints only (SetByBid/SetByAsk); Leg, EFP, EFS excluded — spread legs carry no aggressor information. Bars: buy vs sell volume; line: Z26/Dec1 settle.</div>
+      <div class="cards" id="futCards"></div>
+      <div class="chartbox"><canvas id="futFlowChart"></canvas></div>
+    </div>
+
+    <div class="grid g2">
+      <div class="panel">
+        <div class="eyebrow">CT.FUT / LIQ-02</div>
+        <h2>Liquidity: volume to move 1c</h2>
+        <div class="note">Session outright volume ÷ session range (¢). Falling line = market moving on less volume = accelerating tape. Profile: where volume lives by price — thin shelves move fast.</div>
+        <div class="chartbox short"><canvas id="vpcChart"></canvas></div>
+        <div class="chartbox short"><canvas id="profChart"></canvas></div>
+      </div>
+      <div class="panel">
+        <div class="eyebrow">CT.FUT / OI-03</div>
+        <h2>Open-interest estimator</h2>
+        <div class="note">Relationship of daily net aggressor flow, |price change| and next-print ΔOI, fit on the loaded window; today's estimate below with honest fit stats.</div>
+        <div class="cards" id="oiCards"></div>
+        <div class="chartbox short"><canvas id="oiChart"></canvas></div>
+        <div id="oiVerdict"></div>
+      </div>
+    </div>
+
+    <div class="grid g2">
+      <div class="panel">
+        <div class="eyebrow">CT.FUT / BURST-04</div>
+        <h2>Burst continuation study</h2>
+        <div class="note">5-min windows where |net signed volume| exceeds its 95th percentile → forward 30-min move. Does aggressive size get followed?</div>
+        <div id="burstTable"></div>
+        <div id="burstVerdict"></div>
+      </div>
+      <div class="panel">
+        <div class="eyebrow">CT.FUT / STOP-05</div>
+        <h2>Stop-run / CTA trigger detector</h2>
+        <div class="note">Windows of ≥2-min moves beyond the 98th percentile speed with a volume burst ⇒ stops/systematic triggers. Clustered levels below — these remain live levels until traded through on volume.</div>
+        <div class="scroll" style="max-height:280px"><table id="stopTable"></table></div>
+      </div>
+    </div>
+
+    <div class="panel">
+      <div class="eyebrow">CT.FUT / SETTLE-06</div>
+      <h2>Settlement lab — 14:14–14:15 ET weighted average</h2>
+      <div class="note">Per-session microstructure around the settlement window, plus tested hypotheses: fade-into-settle, close-vs-settle gap → next open, post-settle volume → next open.</div>
+      <div class="cards" id="setCards"></div>
+      <div id="setVerdicts"></div>
+      <div class="scroll" style="max-height:260px"><table id="setTable"></table></div>
+    </div>
+
+    <div class="panel">
+      <div class="eyebrow">CT.FUT / TECH-07</div>
+      <h2>Technical levels — Dec continuation (2008→)</h2>
+      <div class="note">SMA 20/50/100/200, RSI-14, MACD on CTDEC1. Volume-at-level: sessions touching a major SMA are tested for volume expansion vs 20-day average — expanded volume at a level = systematic flow lives there.</div>
+      <div class="cards" id="techCards"></div>
+      <div class="chartbox tall"><canvas id="techChart"></canvas></div>
+      <div id="techNote" class="note"></div>
+    </div>
+
+    <div class="panel">
+      <div class="eyebrow">CT.FUT / IDEA-08</div>
+      <h2>Idea engine — futures</h2>
+      <div id="futIdeas"></div>
+    </div>
+  </div>
+</main>
+<footer>Rules-engine output = framings for your own process, not recommendations. Conventions, expiries and greeks verified against ICE specs &amp; Bloomberg settles; aggressor mapping established empirically on this feed (see banner). Built on the flow frameworks of Abdelmessih (Moontower), Sinclair, Natenberg, Bennett.</footer>
+
+<script>
+/* ================= CONFIG ================= */
+const RAW='https://raw.githubusercontent.com/BMR-Com/softs--options-/main/data/cotton/';
+const API='https://api.github.com/repos/BMR-Com/softs--options-/contents/data/cotton';
+const FALLBACK_FUT_FILES=[
+ 'futures_blotter_CT_Z26_2026-05-01_to_2026-05-19.csv',
+ 'futures_blotter_CT_Z26_2026-05-20_to_2026-06-04.csv',
+ 'futures_blotter_CT_Z26_2026-06-05_to_2026-06-16.csv',
+ 'futures_blotter_CT_Z26_2026-06-17_to_2026-07-08.csv',
+ 'futures_blotter_CT_Z26_2026-07-09_to_2026-07-17.csv'];
+const R=0.045, MULT=500, PKG_WIN=180e3;
+const MONTH_NAME={F:'Jan',G:'Feb',H:'Mar',J:'Apr',K:'May',M:'Jun',N:'Jul',Q:'Aug',U:'Sep',V:'Oct',X:'Nov',Z:'Dec'};
+const S={}; // global state
+
+/* ================= UTILS ================= */
+function csv(text){const lines=text.split(/\r?\n/).filter(l=>l.length);const hdr=lines[0].split(',');
+ const rows=[];for(let i=1;i<lines.length;i++){const p=splitCsv(lines[i]);if(p.length<2)continue;
+  const o={};for(let j=0;j<hdr.length;j++)o[hdr[j].trim()]=p[j];rows.push(o);}return rows;}
+function splitCsv(l){if(!l.includes('"'))return l.split(',');const out=[];let cur='',q=false;
+ for(const ch of l){if(ch=='"')q=!q;else if(ch==','&&!q){out.push(cur);cur='';}else cur+=ch;}out.push(cur);return out;}
+const num=x=>{const v=parseFloat(x);return isNaN(v)?null:v;};
+const fmt=(x,d=0)=>x==null||isNaN(x)?'–':x.toLocaleString('en-US',{minimumFractionDigits:d,maximumFractionDigits:d});
+const pct=(x,d=1)=>x==null||isNaN(x)?'–':(100*x).toFixed(d)+'%';
+const sgn=x=>x>0?'+':'';
+function sessionDate(t){const d=new Date(t.getTime()+9*3600e3);return d.toISOString().slice(0,10);}
+function mean(a){return a.length?a.reduce((s,x)=>s+x,0)/a.length:NaN;}
+function median(a){if(!a.length)return NaN;const b=[...a].sort((x,y)=>x-y);const m=b.length>>1;return b.length%2?b[m]:(b[m-1]+b[m])/2;}
+function quantile(a,q){if(!a.length)return NaN;const b=[...a].sort((x,y)=>x-y);const i=(b.length-1)*q;const lo=Math.floor(i);return b[lo]+(b[Math.min(lo+1,b.length-1)]-b[lo])*(i-lo);}
+function corr(x,y){const n=x.length;if(n<3)return NaN;const mx=mean(x),my=mean(y);let sxy=0,sx=0,sy=0;
+ for(let i=0;i<n;i++){sxy+=(x[i]-mx)*(y[i]-my);sx+=(x[i]-mx)**2;sy+=(y[i]-my)**2;}return sxy/Math.sqrt(sx*sy);}
+function stdev(a){const m=mean(a);return Math.sqrt(mean(a.map(x=>(x-m)**2)));}
+
+/* Black-76 */
+function erf(x){const s=x<0?-1:1;x=Math.abs(x);const t=1/(1+0.3275911*x);
+ const y=1-(((((1.061405429*t-1.453152027)*t)+1.421413741)*t-0.284496736)*t+0.254829592)*t*Math.exp(-x*x);return s*y;}
+const N=x=>0.5*(1+erf(x/Math.SQRT2));
+const phi=x=>Math.exp(-0.5*x*x)/Math.sqrt(2*Math.PI);
+function b76(F,K,T,s,call){const df=Math.exp(-R*T),st=s*Math.sqrt(T);
+ const d1=(Math.log(F/K)+0.5*s*s*T)/st,d2=d1-st;
+ return call?df*(F*N(d1)-K*N(d2)):df*(K*N(-d2)-F*N(-d1));}
+function b76greeks(F,K,T,s,call){const df=Math.exp(-R*T),st=s*Math.sqrt(T);
+ const d1=(Math.log(F/K)+0.5*s*s*T)/st;
+ return{delta:call?df*N(d1):-df*N(-d1),vega:df*F*phi(d1)*Math.sqrt(T)/100,gamma:df*phi(d1)/(F*st)};}
+function solveIV(F,K,T,px,call){if(px<=0||T<=0)return null;
+ const intr=call?Math.max(F-K,0):Math.max(K-F,0);if(px<=intr*Math.exp(-R*T)*0.999)return null;
+ let lo=0.005,hi=3;for(let i=0;i<64;i++){const m=(lo+hi)/2;if(b76(F,K,T,m,call)>px)hi=m;else lo=m;}return (lo+hi)/2;}
+
+/* natural cubic spline (same approach as repo pricer) */
+function spline(xs,ys){const n=xs.length;if(n<3)return k=>{ // linear fallback
+  if(k<=xs[0])return ys[0];if(k>=xs[n-1])return ys[n-1];
+  for(let i=1;i<n;i++)if(k<=xs[i])return ys[i-1]+(ys[i]-ys[i-1])*(k-xs[i-1])/(xs[i]-xs[i-1]);return ys[n-1];};
+ const h=[],al=[];for(let i=0;i<n-1;i++)h.push(xs[i+1]-xs[i]);
+ for(let i=1;i<n-1;i++)al[i]=3/h[i]*(ys[i+1]-ys[i])-3/h[i-1]*(ys[i]-ys[i-1]);
+ const l=[1],mu=[0],z=[0];
+ for(let i=1;i<n-1;i++){l[i]=2*(xs[i+1]-xs[i-1])-h[i-1]*mu[i-1];mu[i]=h[i]/l[i];z[i]=(al[i]-h[i-1]*z[i-1])/l[i];}
+ const c=new Array(n).fill(0),b=[],d=[];
+ for(let j=n-2;j>=0;j--){c[j]=z[j]-mu[j]*(c[j+1]||0);b[j]=(ys[j+1]-ys[j])/h[j]-h[j]*((c[j+1]||0)+2*c[j])/3;d[j]=((c[j+1]||0)-c[j])/(3*h[j]);}
+ return k=>{if(k<=xs[0])return ys[0];if(k>=xs[n-1])return ys[n-1];
+  let i=0;while(i<n-2&&k>xs[i+1])i++;const dx=k-xs[i];
+  return ys[i]+b[i]*dx+c[i]*dx*dx+d[i]*dx*dx*dx;};}
+
+/* ================= LOADING ================= */
+const $=id=>document.getElementById(id);
+function status(msg,err){const s=$('status');s.textContent=msg;s.className=err?'err':'';}
+function prog(p){const el=$('prog');el.style.display=p==null?'none':'block';if(p!=null)el.firstElementChild.style.width=(100*p)+'%';}
+async function fetchCsv(name,label){status('Loading '+label+'…');
+ const r=await fetch(RAW+name,{cache:'no-store'});
+ if(!r.ok)throw new Error(label+' HTTP '+r.status);return csv(await r.text());}
+async function listFutFiles(strip){try{
+  const r=await fetch(API);if(!r.ok)throw 0;const j=await r.json();
+  return j.map(f=>f.name).filter(n=>n.startsWith('futures_blotter_CT_'+strip)).sort();
+ }catch(e){return FALLBACK_FUT_FILES.filter(n=>n.includes(strip));}}
+
+async function loadAll(){
+ try{
+  prog(0.02);
+  const strip=$('stripSel').value, futMode=$('futSel').value;
+  // options oi
+  const oiRows=await fetchCsv('options_oi.csv','option settles/OI');prog(0.25);
+  const mn=MONTH_NAME[strip[0]], yr='20'+strip.slice(1);
+  S.optOi=oiRows.filter(r=>r.commodity=='CT'&&r.contract_month==mn+' '+yr)
+    .map(r=>({date:r.date,pc:r.put_call,K:num(r.strike_px),oi:num(r.open_int)||0,oich:num(r.oi_chg),
+      px:num(r.px_settle),vol:num(r.px_volume),exp:r.expire_dt,dte:num(r.days_to_exp),
+      iv:num(r.iv_pct),delta:num(r.delta),gamma:num(r.gamma),vega:num(r.vega)}))
+    .filter(r=>r.K!=null);
+  S.expiry=S.optOi.length?new Date(S.optOi[S.optOi.length-1].exp+'T14:00:00'):null;
+  // option blotter
+  const ob=await fetchCsv('option_blotter.csv','option blotter');prog(0.4);
+  S.optBlot=ob.filter(r=>r.options_strip==strip).map(r=>({
+    t:new Date(r['Exchange Time']),cond:r.Conditions||'',px:num(r.Price),right:(r.Right||'')[0],
+    K:num(r.Strike),size:num(r.Size)||0,F:num(r.futures_price),fm:r.futures_match||'',
+    sym:r.Symbol})).filter(r=>r.K!=null&&r.px!=null).sort((a,b)=>a.t-b.t);
+  // futures oi (Dec continuation + strip contract series)
+  const fo=await fetchCsv('futures_oi.csv','futures daily history');prog(0.6);
+  S.futOi=fo.filter(r=>r.commodity=='CT'&&r.contract=='CTDEC1').map(r=>({
+    date:r.date,settle:num(r.settle),oi:num(r.open_int),oich:num(r.oi_chg),
+    hi:num(r.high),lo:num(r.low),open:num(r.open),vol:num(r.volume)})).filter(r=>r.settle!=null);
+  // futures blotter
+  let files=await listFutFiles(strip.startsWith('Z')?strip:'Z26');
+  if(futMode!='full history')files=files.slice(-2);
+  S.futBlot=[];
+  for(let i=0;i<files.length;i++){
+    const rows=await fetchCsv(files[i],'futures blotter '+(i+1)+'/'+files.length);
+    for(const r of rows)S.futBlot.push({t:new Date(r['Exchange Time']),cond:r.Conditions,px:num(r.Price),size:num(r.Size)||0});
+    prog(0.6+0.35*(i+1)/files.length);}
+  S.futBlot.sort((a,b)=>a.t-b.t);
+  status('Computing analytics…');
+  computeAll();renderAll();
+  status('Loaded '+S.optBlot.length.toLocaleString()+' option prints / '+S.futBlot.length.toLocaleString()+' futures prints · options_oi through '+S.optOi[S.optOi.length-1].date);
+  prog(null);
+ }catch(e){console.error(e);status('Load failed: '+e.message+' — raw.githubusercontent.com reachable?',true);prog(null);}
+}
+
+/* ================= OPTIONS ANALYTICS ================= */
+function settleSurface(dateStr){ // spline of settle IV by strike per right for latest settle date <= dateStr
+ const dates=[...new Set(S.optOi.map(r=>r.date))].sort();
+ let d=null;for(const x of dates)if(x<dateStr)d=x; if(!d)d=dates[0];
+ const day=S.optOi.filter(r=>r.date==d&&r.iv!=null);
+ const mk=pc=>{const rows=day.filter(r=>r.pc==pc).sort((a,b)=>a.K-b.K);
+   const xs=rows.map(r=>r.K),ys=rows.map(r=>r.iv/100);return xs.length>=3?spline(xs,ys):null;};
+ return {date:d,C:mk('C'),P:mk('P'),rows:day};}
+
+function computeOptions(){
+ const B=S.optBlot;if(!B.length){S.opt={};return;}
+ // enrich: side, traded IV, settle IV
+ const surfCache={};
+ for(const r of B){
+  const sd=sessionDate(r.t);
+  if(!surfCache[sd])surfCache[sd]=settleSurface(sd);
+  const surf=surfCache[sd];
+  r.session=sd;r.fresh=!/carried|no/.test(r.fm);
+  r.T=S.expiry?Math.max((S.expiry-r.t)/31536e6,1/365):0.25;
+  r.ivT=(r.F&&r.fresh!=null)?solveIV(r.F,r.K,r.T,r.px,r.right=='C'):null;
+  const fn=surf[r.right];r.ivS=fn?fn(r.K):null;
+  r.dIV=(r.ivT!=null&&r.ivS!=null)?r.ivT-r.ivS:null;
+  const g=(r.F&&r.ivT)?b76greeks(r.F,r.K,r.T,r.ivT,r.right=='C'):{delta:null,vega:null};
+  r.delta=g.delta;r.vega=g.vega;
+  // corrected convention: SetByBid=buy, SetByAsk=sell
+  if(/SetByBid/.test(r.cond))r.side=1,r.conf='firm';
+  else if(/SetByAsk/.test(r.cond))r.side=-1,r.conf='firm';
+  else r.side=0,r.conf='leg';
+ }
+ // de-drift leg signing: subtract session-median dIV then sign residual
+ const bySess={};B.forEach(r=>{(bySess[r.session]=bySess[r.session]||[]).push(r);});
+ for(const sd in bySess){const md=median(bySess[sd].filter(r=>r.dIV!=null).map(r=>r.dIV));
+  for(const r of bySess[sd]){if(r.side==0&&r.dIV!=null){const res=r.dIV-(md||0);
+   if(Math.abs(res)>0.0008)r.side=res>0?1:-1,r.conf='inferred';}}}
+ for(const r of B){const ad=r.delta==null?null:Math.abs(r.delta);
+  r.bucket=ad==null?'?':ad>=0.4?'ATM':ad<=0.25?(r.right=='C'?'call wing':'put wing'):(r.right=='C'?'call mid':'put mid');}
+ // sessions list
+ S.opt={sessions:[...new Set(B.map(r=>r.session))].sort(),surfCache};
+ // packages (fresh only)
+ const pk=[];let cur=null;
+ for(const r of B.filter(r=>r.fresh)){
+  if(cur&&r.t-cur.end<=PKG_WIN){cur.legs.push(r);cur.end=r.t;}
+  else{if(cur)pk.push(cur);cur={start:r.t,end:r.t,legs:[r]};}}
+ if(cur)pk.push(cur);
+ pk.forEach(p=>p.label=labelPkg(p));
+ S.opt.packages=pk.filter(p=>new Set(p.legs.map(l=>l.right+l.K)).size>1||p.legs.reduce((s,l)=>s+l.size,0)>=10);
+ // dealer inventory: cumulative CUSTOMER net per strike/right (firm+inferred)
+ const inv={};for(const r of B){if(!r.side||r.conf!='firm')continue;const k=r.K+r.right;
+  inv[k]=(inv[k]||0)+r.side*r.size;}
+ S.opt.custNet=inv;
+ // gamma map from latest OI date
+ const lastD=S.optOi[S.optOi.length-1].date;
+ const latest=S.optOi.filter(r=>r.date==lastD&&r.gamma!=null);
+ const gmap={};for(const r of latest){gmap[r.K]=gmap[r.K]||{g:0,oi:0,cNet:0};
+  gmap[r.K].g+=r.oi*r.gamma;gmap[r.K].oi+=r.oi;
+  gmap[r.K].cNet+=(inv[r.K+r.pc]||0);}
+ S.opt.gmap=gmap;S.opt.oiDate=lastD;
+ // ATM IV history + RV
+ S.opt.atmHist=atmIvHistory();
+ S.opt.rv=realizedVol();
+}
+function labelPkg(p){
+ const m={};for(const l of p.legs){const k=l.right+'|'+l.K;
+  m[k]=m[k]||{r:l.right,K:l.K,sz:0,net:0,div:[]};m[k].sz+=l.size;m[k].net+=l.side*l.size;m[k].div.push(l.dIV);}
+ const legs=Object.values(m).sort((a,b)=>a.K-b.K);const n=legs.length;
+ const side=l=>l.net>0.2*l.sz?1:l.net<-0.2*l.sz?-1:0;
+ const rr=legs.filter(l=>l.r=='C'),pp=legs.filter(l=>l.r=='P');
+ if(n==1){const l=legs[0];return `outright ${l.K}${l.r} ${side(l)>0?'bought':side(l)<0?'sold':'traded'} (${fmt(l.sz)})`;}
+ if(n==2&&rr.length==1&&pp.length==1){const c=rr[0],pt=pp[0],sc=side(c),sp=side(pt);
+  if(sc>0&&sp<0)return `risk reversal: +${c.K}C / −${pt.K}P (bullish) ${fmt(c.sz)}x${fmt(pt.sz)}`;
+  if(sc<0&&sp>0)return `collar/RR: +${pt.K}P / −${c.K}C (bearish) ${fmt(pt.sz)}x${fmt(c.sz)}`;
+  if(sc>0&&sp>0)return `strangle bought ${pt.K}P/${c.K}C`;
+  if(sc<0&&sp<0)return `strangle sold ${pt.K}P/${c.K}C`;
+  return `combo ${pt.K}P/${c.K}C`;}
+ if(n==2&&(rr.length==2||pp.length==2)){const [a,b]=legs;const sa=side(a),sb=side(b);const w=a.r=='C'?'call':'put';
+  const rat=a.sz/b.sz>1.25||b.sz/a.sz>1.25?` ${fmt(a.sz)}x${fmt(b.sz)}`:'';
+  if(sa*sb<0)return `${w} spread ${sa>0?'bought':'sold'} ${a.K}/${b.K}${rat}`;
+  const da=mean(a.div.filter(x=>x!=null)),db=mean(b.div.filter(x=>x!=null));
+  if(isFinite(da)&&isFinite(db)&&Math.abs(da-db)>5e-4)
+   return `${w} spread likely ${da>db?`bought ${a.K}/${b.K}`:`sold ${a.K}/${b.K}`} (rel re-mark)${rat}`;
+  return `${w} combo ${a.K}/${b.K}${rat}`;}
+ if(n==3)return `${legs[0].r=='C'?'call':'put'} fly/ladder ${legs.map(l=>l.K).join('/')}`;
+ return 'multi-leg '+legs.map(l=>l.K+l.r).join(' ');
+}
+function atmIvHistory(){
+ const out=[];const byDate={};S.optOi.forEach(r=>{(byDate[r.date]=byDate[r.date]||[]).push(r);});
+ const fMap={};S.futOi.forEach(r=>fMap[r.date]=r.settle);
+ for(const d of Object.keys(byDate).sort()){
+  const F=fMap[d];if(!F)continue;
+  const rows=byDate[d].filter(r=>r.iv!=null);
+  const cs=rows.filter(r=>r.pc=='C').sort((a,b)=>a.K-b.K);
+  if(cs.length<3)continue;
+  const fn=spline(cs.map(r=>r.K),cs.map(r=>r.iv/100));
+  out.push({date:d,atm:fn(F),F});}
+ return out;}
+function realizedVol(){
+ const s=S.futOi.map(r=>({d:r.date,p:r.settle}));
+ const out=[];for(let i=21;i<s.length;i++){
+  const rets=[];for(let j=i-19;j<=i;j++)rets.push(Math.log(s[j].p/s[j-1].p));
+  const rvd=Math.sqrt(mean(rets.map(r=>r*r))*251);
+  const wk=[];for(let j=i;j>i-20;j-=5)if(j-5>=0)wk.push(Math.log(s[j].p/s[j-5].p));
+  const rvw=wk.length>=2?Math.sqrt(mean(wk.map(r=>r*r))*251/5):null;
+  const vcr=Math.max(...rets.map(r=>r*r))/rets.reduce((a,r)=>a+r*r,0);
+  out.push({date:s[i].d,rvd,rvw,tr:rvw?rvw/rvd:null,vcr});}
+ return out;}
+
+/* ================= FUTURES ANALYTICS ================= */
+function computeFutures(){
+ const B=S.futBlot;if(!B.length){S.fut={};return;}
+ const out=B.filter(r=>r.cond=='SetByBid'||r.cond=='SetByAsk');
+ for(const r of out){r.side=r.cond=='SetByBid'?1:-1;r.session=sessionDate(r.t);}
+ const sessions={},order=[];
+ for(const r of out){if(!sessions[r.session]){sessions[r.session]={rows:[]};order.push(r.session);}sessions[r.session].rows.push(r);}
+ order.sort();
+ const oiMap={};S.futOi.forEach((r,i)=>oiMap[r.date]={...r,next:S.futOi[i+1]||null,prev:S.futOi[i-1]||null});
+ const daily=[];
+ for(const sd of order){const g=sessions[sd].rows;
+  const vol=g.reduce((s,r)=>s+r.size,0);
+  const buy=g.filter(r=>r.side>0).reduce((s,r)=>s+r.size,0);
+  const hi=Math.max(...g.map(r=>r.px)),lo=Math.min(...g.map(r=>r.px));
+  const oi=oiMap[sd];
+  daily.push({sd,vol,buy,sell:vol-buy,net:2*buy-vol,hi,lo,rng:hi-lo,
+   vpc:vol/Math.max(hi-lo,0.25),last:g[g.length-1].px,
+   settle:oi?oi.settle:null,oich:oi?oi.oich:null,pxch:oi&&oi.prev?oi.settle-oi.prev.settle:null,
+   openNext:oi&&oi.next?oi.next.open:null,settleNextCh:oi&&oi.next?oi.next.settle-oi.settle:null});}
+ // OI relationship: dOI ~ a + b*net + c*|pxch|
+ const fit=daily.filter(d=>d.oich!=null&&d.pxch!=null);
+ const y=fit.map(d=>d.oich),x1=fit.map(d=>d.net),x2=fit.map(d=>Math.abs(d.pxch));
+ const cN=corr(x1,y),cA=corr(x2,y),cP=corr(fit.map(d=>d.net),fit.map(d=>d.pxch));
+ // simple 2-var OLS
+ let beta=null;if(fit.length>6){const X=fit.map((d,i)=>[1,x1[i],x2[i]]);beta=ols(X,y);}
+ const today=daily[daily.length-1];
+ const oiEst=beta&&today?beta[0]+beta[1]*today.net+beta[2]*Math.abs(today.pxch??(today.last-(daily[daily.length-2]?.settle??today.last))):null;
+ const cNext=corr(fit.filter(d=>d.settleNextCh!=null).map(d=>d.net),
+                  fit.filter(d=>d.settleNextCh!=null).map(d=>d.settleNextCh));
+ // burst study
+ const bins={};for(const r of out){const k=Math.floor(r.t/3e5);
+  bins[k]=bins[k]||{sv:0,vol:0,last:null,t:k*3e5};bins[k].sv+=r.side*r.size;bins[k].vol+=r.size;bins[k].last=r.px;}
+ const keys=Object.keys(bins).map(Number).sort((a,b)=>a-b);
+ const arr=keys.map(k=>bins[k]);
+ const thr=quantile(arr.map(b=>Math.abs(b.sv)),0.95);
+ const study={buy:[],sell:[]};
+ for(let i=0;i<arr.length;i++){
+  let fwd=null;for(let j=i+1;j<arr.length&&keys[j]-keys[i]<=6;j++)if(keys[j]-keys[i]==6||j==arr.length-1)fwd=arr[j].last;
+  const tgt=arr.findIndex((b,j)=>j>i&&keys[j]>=keys[i]+6);
+  fwd=tgt>0?arr[tgt].last:null;
+  if(fwd==null)continue;const mv=fwd-arr[i].last;
+  if(arr[i].sv>thr)study.buy.push(mv);else if(arr[i].sv<-thr)study.sell.push(mv);}
+ // settlement lab
+ const setRows=[];
+ for(const sd of order){const g=sessions[sd].rows;
+  const w=(a,b)=>g.filter(r=>{const hm=r.t.getHours()*60+r.t.getMinutes()+r.t.getSeconds()/60;
+    return sessionDate(r.t)==sd&&hm>=a&&hm<b;});
+  const pre=w(14*60+5,14*60+9),win=w(14*60+14,14*60+15),post=w(14*60+15,14*60+21);
+  if(!pre.length||!win.length)continue;
+  const vwap=win.reduce((s,r)=>s+r.px*r.size,0)/win.reduce((s,r)=>s+r.size,0);
+  const oi=oiMap[sd];
+  setRows.push({sd,pPre:pre[pre.length-1].px,vwap,
+   pPost:post.length?post[post.length-1].px:null,
+   postVol:post.reduce((s,r)=>s+r.size,0),postNet:post.reduce((s,r)=>s+r.side*r.size,0),
+   settle:oi?oi.settle:null,openNext:oi&&oi.next?oi.next.open:null});}
+ for(const r of setRows){r.preToSet=(r.vwap-r.pPre)*100;
+  r.setToPost=r.pPost!=null?(r.pPost-r.vwap)*100:null;
+  r.closeVsSettle=(r.pPost!=null&&r.settle!=null)?(r.pPost-r.settle)*100:null;
+  r.gapNext=(r.openNext!=null&&r.settle!=null)?(r.openNext-r.settle)*100:null;}
+ // stop detector: 2-min windows
+ const m2={};for(const r of out){const k=Math.floor(r.t/12e4);
+  m2[k]=m2[k]||{hi:-1e9,lo:1e9,vol:0,t:new Date(k*12e4),first:r.px,last:null};
+  const b=m2[k];b.hi=Math.max(b.hi,r.px);b.lo=Math.min(b.lo,r.px);b.vol+=r.size;b.last=r.px;}
+ const wArr=Object.values(m2);
+ const spd=wArr.map(b=>b.hi-b.lo),vThr=quantile(wArr.map(b=>b.vol),0.9),sThr=Math.max(quantile(spd,0.98),0.30);
+ const stops=wArr.filter(b=>(b.hi-b.lo)>=sThr&&b.vol>=vThr)
+   .map(b=>({t:b.t,rng:(b.hi-b.lo)*100,vol:b.vol,dir:b.last>=b.first?'▲ up':'▼ down',
+     level:b.last>=b.first?b.lo:b.hi}));
+ // cluster levels within 25pts
+ const lvl=[];for(const s2 of stops.sort((a,b)=>a.level-b.level)){
+  const c=lvl.find(l=>Math.abs(l.px-s2.level)<=0.25);
+  if(c){c.n++;c.px=(c.px*(c.n-1)+s2.level)/c.n;c.lastT=s2.t;}
+  else lvl.push({px:s2.level,n:1,lastT:s2.t});}
+ // technicals on CTDEC1 full history
+ const px=S.futOi.map(r=>r.settle),dts=S.futOi.map(r=>r.date),vols=S.futOi.map(r=>r.vol||0);
+ const smaF=n=>px.map((_,i)=>i>=n-1?mean(px.slice(i-n+1,i+1)):null);
+ const sma={20:smaF(20),50:smaF(50),100:smaF(100),200:smaF(200)};
+ const rsi=(()=>{const out2=[];let ug=0,dg=0;for(let i=1;i<px.length;i++){const d=px[i]-px[i-1];
+   const u=Math.max(d,0),dn=Math.max(-d,0);
+   if(i<=14){ug+=u/14;dg+=dn/14;out2.push(null);}
+   else{ug=(ug*13+u)/14;dg=(dg*13+dn)/14;out2.push(100-100/(1+ug/Math.max(dg,1e-9)));}}
+   out2.unshift(null);return out2;})();
+ const ema=(n)=>{const k=2/(n+1);const o=[px[0]];for(let i=1;i<px.length;i++)o.push(px[i]*k+o[i-1]*(1-k));return o;};
+ const e12=ema(12),e26=ema(26);const macd=e12.map((v,i)=>v-e26[i]);
+ const sig=(()=>{const k=2/10;const o=[macd[0]];for(let i=1;i<macd.length;i++)o.push(macd[i]*k+o[i-1]*(1-k));return o;})();
+ // volume-at-level: SMA100/200 touch days volume vs 20d avg
+ const touches=[];for(const n of [50,100,200]){let cnt=0,expand=0;
+  for(let i=200;i<px.length;i++){const s2=sma[n][i];if(!s2)continue;
+   const lo2=S.futOi[i].lo,hi2=S.futOi[i].hi;
+   if(lo2!=null&&hi2!=null&&lo2<=s2&&hi2>=s2){cnt++;
+    const av=mean(vols.slice(i-20,i).filter(v=>v>0));if(vols[i]>1.3*av)expand++;}}
+  touches.push({n,cnt,expand,rate:cnt?expand/cnt:0});}
+ S.fut={daily,order,cN,cA,cP,cNext,beta,oiEst,today,thr,study,setRows,stops:stops.sort((a,b)=>b.t-a.t),lvl:lvl.sort((a,b)=>b.n-a.n),
+   sma,rsi,macd,sig,px,dts,touches};
+}
+function ols(X,y){ // (X'X)^-1 X'y for 3 params
+ const n=X.length,p=3;const XtX=[[0,0,0],[0,0,0],[0,0,0]],Xty=[0,0,0];
+ for(let i=0;i<n;i++){for(let a=0;a<p;a++){Xty[a]+=X[i][a]*y[i];
+  for(let b=0;b<p;b++)XtX[a][b]+=X[i][a]*X[i][b];}}
+ // gaussian elim
+ const A=XtX.map((r,i)=>[...r,Xty[i]]);
+ for(let c=0;c<p;c++){let piv=c;for(let r2=c+1;r2<p;r2++)if(Math.abs(A[r2][c])>Math.abs(A[piv][c]))piv=r2;
+  [A[c],A[piv]]=[A[piv],A[c]];if(Math.abs(A[c][c])<1e-12)return null;
+  for(let r2=0;r2<p;r2++){if(r2==c)continue;const f=A[r2][c]/A[c][c];
+   for(let k=c;k<=p;k++)A[r2][k]-=f*A[c][k];}}
+ return A.map((r2,i)=>r2[p]/r2[i]);}
+
+function computeAll(){computeOptions();computeFutures();}
+</script>
+
+<script>
+/* ================= RENDER ================= */
+let charts={};
+function chart(id,cfg){if(charts[id])charts[id].destroy();
+ Chart.defaults.color='#8b93a1';Chart.defaults.borderColor='#242e39';
+ Chart.defaults.font.family="'IBM Plex Mono',monospace";Chart.defaults.font.size=10;
+ charts[id]=new Chart($(id),cfg);return charts[id];}
+const GOLD='#d9a441',BUY='#3fb68b',SELL='#e05252',BLUE='#5b8dd6',MUT='#5c6570';
+
+function shownSessions(){const v=$('optDays').value;const s=S.opt.sessions||[];
+ return v=='all'?s:s.slice(-parseInt(v));}
+
+function renderOptions(){
+ if(!S.opt||!S.opt.sessions){return;}
+ const sess=new Set(shownSessions());
+ const onlyFirm=$('onlyFirm').checked;
+ let rows=S.optBlot.filter(r=>sess.has(r.session)&&r.fresh);
+ if(onlyFirm)rows=rows.filter(r=>r.conf=='firm');
+ // cards
+ const buys=rows.filter(r=>r.side>0),sells=rows.filter(r=>r.side<0);
+ const prem=g=>g.reduce((s,r)=>s+r.px*r.size*MULT,0);
+ const veg=g=>g.reduce((s,r)=>s+(r.vega||0)*r.size*MULT*r.side,0);
+ const above=rows.filter(r=>r.dIV!=null&&r.dIV>0).length, withIv=rows.filter(r=>r.dIV!=null).length;
+ $('optCards').innerHTML=cardHtml([
+  ['Sessions shown',[...sess].length,''],
+  ['Bought (lots)',fmt(buys.reduce((s,r)=>s+r.size,0)),'$'+fmt(prem(buys))],
+  ['Sold (lots)',fmt(sells.reduce((s,r)=>s+r.size,0)),'$'+fmt(prem(sells))],
+  ['Net signed vega','$'+fmt(veg(rows)),'per vol pt',veg(rows)],
+  ['Prints above settle IV',pct(withIv?above/withIv:null,0),above+' / '+withIv],
+  ['Net delta (fut lots)',fmt(rows.reduce((s,r)=>s+r.side*r.size*(r.delta||0),0),0),'',rows.reduce((s,r)=>s+r.side*r.size*(r.delta||0),0)]]);
+ // flow table
+ let h='<tr><th>Time</th><th>Sym</th><th>Px</th><th>Size</th><th>Side</th><th>Type</th><th>Trd IV</th><th>Stl IV</th><th>vs settle</th><th>Δ</th><th>Bucket</th></tr>';
+ for(const r of rows.slice(-400).reverse()){
+  h+=`<tr><td>${r.t.toISOString().slice(5,16).replace('T',' ')}</td><td>${r.sym}</td><td>${r.px.toFixed(2)}</td><td>${fmt(r.size)}</td>
+  <td>${r.side>0?'<span class="badge b">BUY</span>':r.side<0?'<span class="badge s">SELL</span>':'<span class="badge">?</span>'}${r.conf=='inferred'?'<span class="small">*</span>':''}</td>
+  <td>${/Leg/.test(r.cond)?'leg':'outright'}</td>
+  <td>${r.ivT?pct(r.ivT):'–'}</td><td>${r.ivS?pct(r.ivS):'–'}</td>
+  <td class="${r.dIV>0?'buy':'sell'}">${r.dIV!=null?sgn(r.dIV)+(100*r.dIV).toFixed(2)+'v':'–'}</td>
+  <td>${r.delta!=null?(100*r.delta).toFixed(0)+'d':'–'}</td><td>${r.bucket}</td></tr>`;}
+ $('flowTable').innerHTML=h;
+ // skew impulse
+ const bks=['put wing','put mid','ATM','call mid','call wing'];
+ const imp=bks.map(b=>{const g=rows.filter(r=>r.bucket==b);
+  return{b,vega:veg(g),lots:g.reduce((s,r)=>s+r.size,0),
+   div:mean(g.filter(r=>r.dIV!=null).map(r=>r.dIV)),iv:mean(g.filter(r=>r.ivT).map(r=>r.ivT))};});
+ chart('skewChart',{type:'bar',data:{labels:bks,datasets:[{label:'net signed vega $',
+  data:imp.map(i=>i.vega),backgroundColor:imp.map(i=>i.vega>=0?BUY:SELL)}]},
+  options:{plugins:{legend:{display:false}},scales:{y:{ticks:{callback:v=>'$'+fmt(v)}}}}});
+ $('skewTable').innerHTML='<table><tr><th>Bucket</th><th>Lots</th><th>Net vega</th><th>Avg IV−settle</th><th>Avg trd IV</th></tr>'+
+  imp.map(i=>`<tr><td>${i.b}</td><td>${fmt(i.lots)}</td><td class="${i.vega>=0?'buy':'sell'}">$${fmt(i.vega)}</td>
+  <td>${isFinite(i.div)?sgn(i.div)+(100*i.div).toFixed(2)+'v':'–'}</td><td>${isFinite(i.iv)?pct(i.iv):'–'}</td></tr>`).join('')+'</table>';
+ // packages
+ const pks=(S.opt.packages||[]).filter(p=>sess.has(sessionDate(p.start)));
+ $('pkgTable').innerHTML='<tr><th>Start</th><th>Package</th><th>Lots</th></tr>'+
+  pks.slice(-120).reverse().map(p=>`<tr><td>${p.start.toISOString().slice(5,16).replace('T',' ')}</td>
+  <td style="text-align:left">${p.label}</td><td>${fmt(p.legs.reduce((s,l)=>s+l.size,0))}</td></tr>`).join('');
+ renderGamma();renderIvRv();renderOptIdeas(imp,rows);
+}
+function cardHtml(items){return items.map(([k,v,d,s])=>
+ `<div class="card"><div class="k">${k}</div><div class="v ${s>0?'pos':s<0?'neg':''}">${v}</div><div class="d">${d||''}</div></div>`).join('');}
+
+function renderGamma(){
+ const g=S.opt.gmap;if(!g)return;
+ const F=S.futOi[S.futOi.length-1].settle;
+ const Ks=Object.keys(g).map(Number).filter(k=>k>=F-16&&k<=F+18).sort((a,b)=>a-b);
+ const data=Ks.map(k=>g[k].g),col=Ks.map(k=>{
+  const cn=g[k].cNet;if(Math.abs(cn)<50)return MUT;
+  return cn>0?SELL:BUY;}); // customer bought -> dealer short = red
+ chart('gammaChart',{type:'bar',data:{labels:Ks,datasets:[
+  {label:'OI gamma (fut lots / 1c)',data,backgroundColor:col}]},
+  options:{plugins:{legend:{display:false},tooltip:{callbacks:{afterLabel:c=>{
+    const k=Ks[c.dataIndex];const cn=g[k].cNet;
+    return ['OI: '+fmt(g[k].oi),'cust net flow: '+sgn(cn)+fmt(cn)+' lots',
+      Math.abs(cn)<50?'dealer: unknown (stale OI)':cn>0?'dealer SHORT gamma → accelerant':'dealer LONG gamma → pin'];}}},
+   annotation:undefined},
+   scales:{x:{ticks:{autoSkip:false,maxRotation:0,callback:(v,i)=>Ks[i]%1==0?Ks[i]:''}},
+    y:{ticks:{callback:v=>fmt(v)}}}}});
+ // add F marker via plugin-free trick: annotate narrative
+ const short=Ks.filter(k=>g[k].cNet>150).map(k=>k+' ('+fmt(g[k].g,0)+')');
+ const long=Ks.filter(k=>g[k].cNet<-150).map(k=>k+' ('+fmt(g[k].g,0)+')');
+ const top=[...Ks].sort((a,b)=>g[b].g-g[a].g).slice(0,3);
+ $('gammaNarr').innerHTML=`Future ◆ <b class="gold">${F.toFixed(2)}</b> · biggest gamma poles: <b>${top.join(', ')}</b>.
+  <span class="sell">Dealer-short (accelerant / IV bid on approach):</span> ${short.join(', ')||'none inferred'}.
+  <span class="buy">Dealer-long (pin / IV offered):</span> ${long.join(', ')||'none inferred'}.
+  Expect the tape to speed up + vol to firm into red strikes and stall into green ones — until fresh volume trades there and repositions dealers.`;
+ const near=Ks.filter(k=>Math.abs(k-F)<=1.5);
+ const ng=near.reduce((s,k)=>s+(g[k].cNet>0?-1:g[k].cNet<0?1:0)*g[k].g,0);
+ $('hedgeNote').innerHTML=`Strikes within 1.5c of the future: ${near.join(', ')}. Net inferred dealer gamma there ≈ <b>${ng>=0?'LONG':'SHORT'}</b>.
+  ${ng>=0?'Dealers hedge <b>against</b> the move on the close (sell strength / buy weakness into 14:14–15) → settlement mean-reversion pressure, pinning risk toward the pole.':
+  'Dealers hedge <b>with</b> the move on the close (buy strength / sell weakness into 14:14–15) → settlement momentum pressure, moves into settle can extend.'}
+  Re-estimate daily as flow updates inventory.`;
+}
+function renderIvRv(){
+ const a=S.opt.atmHist||[],rv=S.opt.rv||[];
+ const rvMap={};rv.forEach(r=>rvMap[r.date]=r);
+ const dates=a.map(x=>x.date).filter(d=>rvMap[d]).slice(-160);
+ chart('ivrvChart',{type:'line',data:{labels:dates,datasets:[
+  {label:'ATM IV',data:dates.map(d=>100*a.find(x=>x.date==d).atm),borderColor:GOLD,pointRadius:0,borderWidth:1.6},
+  {label:'20d RV (daily)',data:dates.map(d=>100*rvMap[d].rvd),borderColor:BLUE,pointRadius:0,borderWidth:1.2},
+  {label:'20d RV (weekly-sampled)',data:dates.map(d=>rvMap[d].rvw?100*rvMap[d].rvw:null),borderColor:BUY,pointRadius:0,borderWidth:1.2,borderDash:[4,3]}]},
+  options:{scales:{x:{ticks:{maxTicksLimit:8}},y:{ticks:{callback:v=>v+'%'}}},plugins:{legend:{position:'bottom'}}}});
+ const last=rv[rv.length-1],atm=a[a.length-1];
+ const quad=last?(last.tr>=0.95?(last.vcr<0.25?'grinding trend':'spike trend'):(last.vcr<0.25?'choppy grind':'spike revert')):'–';
+ S.opt.quad=quad;S.opt.lastRv=last;S.opt.lastAtm=atm;
+ $('ivrvCards').innerHTML=cardHtml([
+  ['ATM IV',pct(atm?.atm),atm?.date],
+  ['RV 20d daily',pct(last?.rvd),''],
+  ['RV weekly-sampled',pct(last?.rvw),'Trend Ratio '+(last?.tr?last.tr.toFixed(2):'–')],
+  ['VCR',pct(last?.vcr,0),'1-day share of variance'],
+  ['Regime',quad,quad=='grinding trend'?'daily RV understates fair vol':''],
+  ['VRP (IV − RVd)',atm&&last?sgn(atm.atm-last.rvd)+(100*(atm.atm-last.rvd)).toFixed(1)+'v':'–','',atm&&last?(atm.atm-last.rvd):0]]);
+}
+function renderOptIdeas(imp,rows){
+ const ideas=[];const F=S.futOi[S.futOi.length-1].settle;
+ const gv=b=>imp.find(i=>i.b==b)||{vega:0,div:NaN,iv:NaN};
+ const cw=gv('call wing').vega+gv('call mid').vega, pw=gv('put wing').vega+gv('put mid').vega;
+ const atm=S.opt.lastAtm,rvL=S.opt.lastRv;
+ if(pw>0&&cw<0)ideas.push({s:88,t:'Producer collar flow dominant — own the pin, respect the floor',
+  th:`Customers net BUY put vega ($${fmt(pw)}) and net SELL call vega ($${fmt(cw)}) over the shown sessions — the classic post-rally commercial collar. Dealers are getting LONG upside gamma → rallies into big call-OI strikes should pin and IV should come offered on strength.`,
+  st:'Sell rallies into the largest dealer-long call strike via call spreads/flies financed at the pinned strike; own downside via the puts customers are paying up for only if their IV mark keeps sticking at settle.',
+  tr:'Confirm at tonight\'s settle: put-wing marks hold, call-wing marks stay offered.',
+  inv:'Fresh block call buying flips dealer inventory at the pole strike.'});
+ if(cw>0&&pw<0)ideas.push({s:88,t:'Bullish RR flow — call skew being paid for',
+  th:`Customers net buy call vega ($${fmt(cw)}) financed by put sales ($${fmt(pw)}). Dealers short the call wing will bid vol on rallies (spot-up-vol-up).`,
+  st:'Join via RR while cheap, or fade the richened wing with 1x2 / BWB after exhaustion.',
+  tr:'Persistence at next settle.',inv:'Wing marks fully retrace at settle (noise).'});
+ if(atm&&rvL){const vrp=atm.atm-rvL.rvd;
+  if(S.opt.quad=='grinding trend'&&atm.atm<(rvL.rvw||99))
+   ideas.push({s:80,t:'High-IV-can-be-cheap: trend-adjusted RV above implieds',
+    th:`Regime = grinding trend (TR ${rvL.tr.toFixed(2)}, VCR ${pct(rvL.vcr,0)}); weekly-sampled RV ${pct(rvL.rvw)} vs ATM IV ${pct(atm.atm)}. Moontower's study: this quadrant precedes +8-12% forward RV — the daily number is lying to sellers.`,
+    st:'Prefer net-long-gamma structures; buy the wing the flow is dumping once supply exhausts.',
+    tr:'TR stays > 1.',inv:'Quadrant flips to spike-revert.'});
+  else ideas.push({s:60,t:`VRP overlay: ATM IV ${vrp>0.02?'rich':vrp<0?'cheap':'≈ fair'} vs realized`,
+    th:`ATM ${pct(atm.atm)} vs RV daily ${pct(rvL.rvd)} / weekly ${pct(rvL.rvw)}; regime ${S.opt.quad}. You trade the implied-vs-realized spread, not "vol" (Sinclair).`,
+    st:vrp>0.02?'Overlay: prefer premium-selling structures at the dealer-long pin strikes.':'Overlay: avoid net short gamma.',
+    tr:'Refresh daily.',inv:'Regime change.'});}
+ // iceberg on options
+ const stale={};for(const r of S.optBlot.filter(r=>!r.fresh&&shownSessions().includes(r.session)))
+  {const k=r.K+r.right;stale[k]=(stale[k]||0)+1;}
+ for(const k in stale)if(stale[k]>=4){
+  ideas.push({s:70,t:`Working order in ${k}: ${stale[k]} carried-forward pings`,
+   th:'Repeated small carried-forward prints = a resting algo still working. Supply/demand at this strike is NOT exhausted.',
+   st:'Do not step in front; pre-stage entry for when fresh prints resume with IV stabilizing (absorption).',
+   tr:'fresh prints + flat IV on continued volume.',inv:'Order pulls, IV snaps back.'});break;}
+ $('optIdeas').innerHTML=ideas.sort((a,b)=>b.s-a.s).map(i=>ideaHtml(i)).join('')||'<div class="note">Tape too thin for a rules-based idea in the shown window.</div>';
+}
+function ideaHtml(i){return `<div class="idea"><span class="score">score ${i.s}</span><h4>${i.t}</h4>
+ <p>${i.th}</p><p><span class="lbl">Structure</span> ${i.st}</p>
+ <p><span class="lbl">Trigger</span> ${i.tr} &nbsp; <span class="lbl">Invalidation</span> ${i.inv}</p></div>`;}
+
+/* ---- futures render ---- */
+function renderFutures(){
+ const F=S.fut;if(!F||!F.daily)return;
+ const d=F.daily;
+ const tot=d.reduce((s,x)=>s+x.vol,0);
+ $('futCards').innerHTML=cardHtml([
+  ['Sessions',d.length,d[0].sd+' → '+d[d.length-1].sd],
+  ['Outright volume',fmt(tot),'legs/EFP excluded'],
+  ['Net flow (window)',fmt(d.reduce((s,x)=>s+x.net,0)),'lots',d.reduce((s,x)=>s+x.net,0)],
+  ['corr(net, Δsettle)',F.cP?F.cP.toFixed(2):'–','same-day'],
+  ['corr(net, next-day Δ)',isFinite(F.cNext)?F.cNext.toFixed(2):'–','predictive: '+(Math.abs(F.cNext)<0.15?'NO':'weak')],
+  ['Today net',fmt(d[d.length-1].net),d[d.length-1].sd,d[d.length-1].net]]);
+ chart('futFlowChart',{data:{labels:d.map(x=>x.sd),datasets:[
+  {type:'bar',label:'buy vol',data:d.map(x=>x.buy),backgroundColor:BUY,stack:'v'},
+  {type:'bar',label:'sell vol',data:d.map(x=>-x.sell),backgroundColor:SELL,stack:'v'},
+  {type:'line',label:'settle',data:d.map(x=>x.settle),borderColor:GOLD,yAxisID:'y2',pointRadius:0,borderWidth:1.6}]},
+  options:{scales:{x:{ticks:{maxTicksLimit:10}},y:{stacked:true},y2:{position:'right',grid:{display:false}}},plugins:{legend:{position:'bottom'}}}});
+ chart('vpcChart',{type:'line',data:{labels:d.map(x=>x.sd),datasets:[
+  {label:'outright lots per 1c of range',data:d.map(x=>x.vpc),borderColor:GOLD,pointRadius:2,borderWidth:1.4}]},
+  options:{plugins:{legend:{position:'bottom'}},scales:{x:{ticks:{maxTicksLimit:8}}}}});
+ // profile
+ const prof={};for(const r of S.futBlot)if(r.cond=='SetByBid'||r.cond=='SetByAsk'){
+  const b=Math.round(r.px);prof[b]=(prof[b]||0)+r.size;}
+ const pk=Object.keys(prof).map(Number).sort((a,b)=>a-b);
+ chart('profChart',{type:'bar',data:{labels:pk,datasets:[{label:'volume by 1c bin',
+  data:pk.map(k=>prof[k]),backgroundColor:BLUE}]},
+  options:{plugins:{legend:{position:'bottom'}},scales:{y:{ticks:{callback:v=>fmt(v)}}}}});
+ // OI
+ $('oiCards').innerHTML=cardHtml([
+  ['corr(net flow, ΔOI)',isFinite(F.cN)?F.cN.toFixed(2):'–','aggressive buying → OI builds'],
+  ['corr(|Δpx|, ΔOI)',isFinite(F.cA)?F.cA.toFixed(2):'–',''],
+  ['Tomorrow ΔOI estimate',F.oiEst!=null?sgn(F.oiEst)+fmt(F.oiEst):'–','OLS on window',F.oiEst],
+  ['Caveat','R² modest','estimate, not gospel']]);
+ const fit=d.filter(x=>x.oich!=null);
+ chart('oiChart',{type:'scatter',data:{datasets:[{label:'net flow vs ΔOI',
+  data:fit.map(x=>({x:x.net,y:x.oich})),backgroundColor:GOLD,pointRadius:3}]},
+  options:{scales:{x:{title:{display:true,text:'daily net signed volume'}},y:{title:{display:true,text:'ΔOI'}}},plugins:{legend:{display:false}}}});
+ $('oiVerdict').innerHTML=verdict(Math.abs(F.cN)>0.3?'mixed':'no',
+  `OI mechanics: net aggressive buying with rising price = new longs entering (OI builds); price up on net selling = shorts covering (OI falls). On this window corr(net,ΔOI)=${F.cN.toFixed(2)} — directionally right but noisy. Next-day PRICE prediction from net flow: corr=${isFinite(F.cNext)?F.cNext.toFixed(2):'–'} → <b>no standalone next-day edge</b>; use flow for positioning context, not direction.`);
+ // burst
+ const b=F.study;
+ $('burstTable').innerHTML=`<table><tr><th>Event</th><th>n</th><th>avg fwd 30-min (pts)</th><th>hit rate (continuation)</th></tr>
+  <tr><td>BUY burst (net &gt; p95 = ${fmt(F.thr)} lots)</td><td>${b.buy.length}</td>
+   <td class="${mean(b.buy)>=0?'buy':'sell'}">${sgn(mean(b.buy))+(100*mean(b.buy)).toFixed(1)}</td><td>${pct(b.buy.filter(x=>x>0).length/Math.max(b.buy.length,1),0)}</td></tr>
+  <tr><td>SELL burst</td><td>${b.sell.length}</td>
+   <td class="${mean(b.sell)>=0?'buy':'sell'}">${sgn(mean(b.sell))+(100*mean(b.sell)).toFixed(1)}</td><td>${pct(b.sell.filter(x=>x<0).length/Math.max(b.sell.length,1),0)}</td></tr></table>`;
+ const bAvg=mean(b.buy),sAvg=mean(b.sell);
+ $('burstVerdict').innerHTML=verdict((bAvg>0.02&&sAvg<-0.02)?'yes':(Math.abs(bAvg)<0.02&&Math.abs(sAvg)<0.02)?'no':'mixed',
+  `Aggressive size shows ${(bAvg>0&&sAvg<0)?'modest continuation':'little to no continuation'} over 30 minutes on this window (buy ${sgn(bAvg)}${(100*bAvg).toFixed(1)} pts, sell ${sgn(sAvg)}${(100*sAvg).toFixed(1)} pts). Hit rates near 50% ⇒ treat bursts as <b>liquidity events to trade around (fade extremes into thin profile shelves), not momentum signals</b> — unless a burst coincides with a stop-run level below.`);
+ // stops
+ $('stopTable').innerHTML='<tr><th>Time</th><th>Move (pts/2min)</th><th>Vol</th><th>Dir</th><th>Origin level</th></tr>'+
+  F.stops.slice(0,60).map(s2=>`<tr><td>${s2.t.toISOString().slice(5,16).replace('T',' ')}</td>
+   <td>${fmt(s2.rng)}</td><td>${fmt(s2.vol)}</td><td>${s2.dir}</td><td class="gold">${s2.level.toFixed(2)}</td></tr>`).join('')+
+  `<tr><td colspan=5 style="text-align:left;color:var(--muted)">Clustered live levels (n≥2 triggers): <b class="gold">${F.lvl.filter(l=>l.n>=2).map(l=>l.px.toFixed(2)+' ×'+l.n).join(' · ')||'none'}</b></td></tr>`;
+ // settlement
+ const sr=F.setRows;
+ const p2s=sr.map(r=>r.preToSet).filter(isFinite), s2p=sr.map(r=>r.setToPost).filter(x=>x!=null&&isFinite(x));
+ const cvs=sr.filter(r=>r.closeVsSettle!=null&&r.gapNext!=null);
+ const cGap=corr(cvs.map(r=>r.closeVsSettle),cvs.map(r=>r.gapNext));
+ const big=cvs.filter(r=>Math.abs(r.closeVsSettle)>=20);
+ const bigHit=big.length?big.filter(r=>Math.sign(r.closeVsSettle)==Math.sign(r.gapNext)).length/big.length:null;
+ const cPostFlow=corr(cvs.map(r=>r.postNet),cvs.map(r=>r.gapNext));
+ $('setCards').innerHTML=cardHtml([
+  ['Sessions',sr.length,''],
+  ['Drift 14:09→settle',sgn(mean(p2s))+mean(p2s).toFixed(1)+' pts','sd '+stdev(p2s).toFixed(0),mean(p2s)],
+  ['Drift settle→14:20',sgn(mean(s2p))+mean(s2p).toFixed(1)+' pts','sd '+stdev(s2p).toFixed(0),mean(s2p)],
+  ['corr(close−settle, next gap)',isFinite(cGap)?cGap.toFixed(2):'–',''],
+  ['|close−settle|≥20pts',big.length+' obs',bigHit!=null?'same-dir next open: '+pct(bigHit,0):''],
+  ['corr(post-settle flow, gap)',isFinite(cPostFlow)?cPostFlow.toFixed(2):'–','']]);
+ $('setVerdicts').innerHTML=
+  verdict(Math.abs(mean(p2s))>4?'mixed':'no',`<b>Fade-into-settle (sell 14:09 / buy 14:20):</b> avg drift into settle ${sgn(mean(p2s))}${mean(p2s).toFixed(1)} pts, reversal after ${sgn(mean(s2p))}${mean(s2p).toFixed(1)} pts, both vs ~${stdev(p2s).toFixed(0)}-pt noise. Roughly ${(Math.abs(mean(p2s))+Math.abs(mean(s2p))).toFixed(1)} pts of mean-reversion per day <b>before</b> spread + fees — ${Math.abs(mean(s2p))>4?'watch it, borderline':'not tradeable at this sample'}. Exception: days when dealer settlement-hedge pressure (Options tab) is SHORT gamma — momentum into settle then has a mechanism.`)+
+  verdict(Math.abs(cGap)>0.3?'mixed':'no',`<b>Close-vs-settle → next open:</b> corr ${isFinite(cGap)?cGap.toFixed(2):'–'}; with |gap|≥20pts only ${big.length} cases, ${bigHit!=null?pct(bigHit,0):'–'} same-direction. <b>No exploitable signal at current sample size</b> — keep logging, revisit at n≥100.`)+
+  verdict(Math.abs(cPostFlow)>0.3?'mixed':'no',`<b>Post-settle volume/flow → next open:</b> corr ${isFinite(cPostFlow)?cPostFlow.toFixed(2):'–'}. Post-settle prints are mostly MOC cleanup + option hedges — informative for dealer positioning (see Options tab), not next-day direction.`);
+ $('setTable').innerHTML='<tr><th>Session</th><th>14:09 px</th><th>Settle VWAP</th><th>14:20 px</th><th>pre→set</th><th>set→post</th><th>close−settle</th><th>next gap</th><th>post vol</th></tr>'+
+  sr.slice(-40).reverse().map(r=>`<tr><td>${r.sd}</td><td>${r.pPre.toFixed(2)}</td><td>${r.vwap.toFixed(2)}</td>
+   <td>${r.pPost!=null?r.pPost.toFixed(2):'–'}</td><td class="${r.preToSet>=0?'buy':'sell'}">${sgn(r.preToSet)+r.preToSet.toFixed(0)}</td>
+   <td class="${r.setToPost>=0?'buy':'sell'}">${r.setToPost!=null?sgn(r.setToPost)+r.setToPost.toFixed(0):'–'}</td>
+   <td>${r.closeVsSettle!=null?sgn(r.closeVsSettle)+r.closeVsSettle.toFixed(0):'–'}</td>
+   <td class="${r.gapNext>=0?'buy':'sell'}">${r.gapNext!=null?sgn(r.gapNext)+r.gapNext.toFixed(0):'–'}</td>
+   <td>${fmt(r.postVol)}</td></tr>`).join('');
+ // technicals
+ const n=F.px.length,last=F.px[n-1];
+ const smaV=k=>F.sma[k][n-1];
+ $('techCards').innerHTML=cardHtml([
+  ['CTDEC1 last',last.toFixed(2),F.dts[n-1]],
+  ['SMA 20 / 50',smaV(20).toFixed(2)+' / '+smaV(50).toFixed(2),
+   (last>smaV(20)?'above':'below')+' 20, '+(last>smaV(50)?'above':'below')+' 50'],
+  ['SMA 100 / 200',smaV(100).toFixed(2)+' / '+smaV(200).toFixed(2),''],
+  ['RSI-14',F.rsi[n-1].toFixed(0),F.rsi[n-1]>70?'overbought':F.rsi[n-1]<30?'oversold':'neutral'],
+  ['MACD',F.macd[n-1].toFixed(2)+' / sig '+F.sig[n-1].toFixed(2),F.macd[n-1]>F.sig[n-1]?'bullish cross':'bearish cross',F.macd[n-1]-F.sig[n-1]]]);
+ const win=Math.min(500,n);const idx0=n-win;
+ chart('techChart',{type:'line',data:{labels:F.dts.slice(idx0),datasets:[
+  {label:'CTDEC1',data:F.px.slice(idx0),borderColor:'#e8e4d8',pointRadius:0,borderWidth:1.4},
+  {label:'SMA50',data:F.sma[50].slice(idx0),borderColor:GOLD,pointRadius:0,borderWidth:1},
+  {label:'SMA100',data:F.sma[100].slice(idx0),borderColor:BLUE,pointRadius:0,borderWidth:1},
+  {label:'SMA200',data:F.sma[200].slice(idx0),borderColor:SELL,pointRadius:0,borderWidth:1}]},
+  options:{scales:{x:{ticks:{maxTicksLimit:10}}},plugins:{legend:{position:'bottom'}}}});
+ $('techNote').innerHTML='Volume at levels (2008→): '+F.touches.map(t=>
+  `SMA${t.n} touched ${t.cnt}×, volume expanded >30% on ${pct(t.rate,0)} of touches`).join(' · ')+
+  ' — expansion rates meaningfully above ~33% baseline mark levels where systematic flow triggers.';
+ renderFutIdeas();
+}
+function verdict(kind,html){return `<div class="verdict v-${kind}"><b>${kind=='yes'?'EDGE':kind=='no'?'NO EDGE':'CONDITIONAL'}</b> — ${html}</div>`;}
+function renderFutIdeas(){
+ const F=S.fut,d=F.daily,ideas=[];
+ const t=d[d.length-1],lvls=F.lvl.filter(l=>l.n>=2);
+ const last=F.px[F.px.length-1],sma50=F.sma[50][F.px.length-1];
+ if(lvls.length)ideas.push({s:82,t:'Trade the stop shelves, not the stops',
+  th:`Clustered trigger levels at ${lvls.map(l=>l.px.toFixed(2)).join(', ')} — each fired ≥2 fast-tape events. Systematic stops re-load at recently swept levels until real volume trades through (see profile shelves).`,
+  st:'Fade the second sweep of a level when the burst study shows no continuation and the level sits inside a high-volume profile node; go WITH the sweep when the level breaks into a thin profile shelf.',
+  tr:'Price within 15 pts of a clustered level + volume burst.',inv:'Level trades through on >p90 volume and holds.'});
+ ideas.push({s:75,t:`Liquidity regime: ${t.vpc<quantile(d.map(x=>x.vpc),0.35)?'THIN — moves extend':'NORMAL'}`,
+  th:`Latest session needed ${fmt(t.vpc)} lots per 1c vs ${fmt(median(d.map(x=>x.vpc)))} median. Falling volume-per-cent = same flow moves price further — position sizes should shrink and stop distances widen as this line falls.`,
+  st:'Overlay for all execution; pair with dealer gamma map — thin tape + dealer-short strike overhead = acceleration setup.',
+  tr:'vpc below 35th percentile.',inv:'vpc normalizes.'});
+ ideas.push({s:65,t:`Trend filter: price ${last>sma50?'above':'below'} SMA50 (${sma50.toFixed(2)}), RSI ${F.rsi[F.px.length-1].toFixed(0)}`,
+  th:'CTA-style systems key off 50/100/200d bands; volume-expansion stats above show which levels actually carry flow. Signed blotter flow near those levels reveals whether systems are entering or exiting.',
+  st:'Align option structures (Options tab ideas) with the side of SMA50; expect stop-run events (panel STOP-05) to cluster at SMA touches.',
+  tr:'Standing context.',inv:'—'});
+ $('futIdeas').innerHTML=ideas.sort((a,b)=>b.s-a.s).map(ideaHtml).join('');
+}
+
+/* ================= TAPE + TABS + BOOT ================= */
+function renderTape(){
+ const f=S.futOi[S.futOi.length-1],a=S.opt.lastAtm,r=S.opt.lastRv,t=S.fut?.daily?.[S.fut.daily.length-1];
+ const g=S.opt.gmap?Object.keys(S.opt.gmap).sort((x,y)=>S.opt.gmap[y].g-S.opt.gmap[x].g)[0]:null;
+ $('tape').innerHTML=[
+  `<span>CTDEC1 <b>${f.settle.toFixed(2)}</b> (${f.date})</span>`,
+  a?`<span>ATM IV <b>${pct(a.atm)}</b></span>`:'',
+  r?`<span>RV20 <b>${pct(r.rvd)}</b> · TR <b>${r.tr?r.tr.toFixed(2):'–'}</b></span>`:'',
+  t?`<span>NET FLOW <b class="${t.net>=0?'up':'dn'}">${sgn(t.net)}${fmt(t.net)}</b> lots</span>`:'',
+  g?`<span>GAMMA POLE <b>${g}</b></span>`:'',
+  `<span>OI <b>${fmt(f.oi)}</b> (${f.oich!=null?sgn(f.oich)+fmt(f.oich):'–'})</span>`].join('');
+}
+function renderAll(){renderTape();renderOptions();renderFutures();}
+document.querySelectorAll('.tab').forEach(t=>t.onclick=()=>{
+ document.querySelectorAll('.tab').forEach(x=>x.classList.toggle('active',x==t));
+ document.querySelectorAll('.view').forEach(v=>v.classList.toggle('active',v.id=='view-'+t.dataset.view));});
+$('reload').onclick=loadAll;
+$('optDays').onchange=renderOptions;$('onlyFirm').onchange=renderOptions;
+$('futSel').onchange=loadAll;
+loadAll();
+</script>
+
+</body>
+</html>
