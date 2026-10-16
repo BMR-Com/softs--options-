@@ -43,7 +43,7 @@ jobs:
         run: |
           pip install --upgrade pip setuptools wheel
           for i in 1 2 3; do
-            pip install pdfplumber pandas numpy && break || { echo "Retry $i..."; sleep 10; }
+            pip install pdfplumber pandas numpy requests && break || { echo "Retry $i..."; sleep 10; }
           done
 
       - name: Download new PDFs (if date specified)
@@ -65,6 +65,9 @@ jobs:
 
           echo "PDFs in folder:"
           ls -la ${{ env.PDF_DIR }}/
+
+      - name: Archive futures settlements and open interest (before PDF cleanup)
+        run: python analytics/parse_futures.py
 
       - name: Run archiver (process ALL existing PDFs)
         run: |
@@ -102,12 +105,16 @@ jobs:
             fi
           fi
 
+      - name: Build vol desk
+        continue-on-error: true
+        run: python analytics/build_desk.py
+
       - name: Commit and push CSV archive
         run: |
           git config --local user.email "action@github.com"
           git config --local user.name "GitHub Action"
 
-          git add ${{ env.CSV_DIR }}/*_MASTER.csv
+          git add ${{ env.CSV_DIR }}/*_MASTER.csv ${{ env.CSV_DIR }}/*_FUTURES.csv data/web/
 
           if git diff --cached --quiet; then
             echo "No changes to commit"

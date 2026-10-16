@@ -141,6 +141,53 @@ tr.atm .sk{background:rgba(240,180,41,.22)!important;color:var(--atm)!important}
 .add-port-btn:hover{background:rgba(88,166,255,.35)}
 .td-input{background:var(--bg3);border:0.5px solid var(--border2);border-radius:3px;color:var(--atm);font-family:'Courier New',monospace;font-size:9px;padding:1px 4px;width:62px;text-align:right}
 .td-input:focus{outline:none;border-color:var(--blue)}
+
+/* ── VOL DESK ── */
+:root{--dk-up:#3fb950;--dk-dn:#f85149;--dk-mut:#6e7681}
+.dk-navtab{color:#f0b429!important;font-weight:700}
+.dk-wrap{max-width:1500px;margin:0 auto;padding:16px 18px 30px;font-family:system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;font-size:13px;color:#e6edf3}
+.dk-empty{padding:40px;text-align:center;color:#8b949e}
+.dk-head{display:flex;justify-content:space-between;align-items:flex-end;gap:12px;flex-wrap:wrap;margin-bottom:14px}
+.dk-title{font-size:20px;font-weight:650;letter-spacing:.01em}
+.dk-sub{font-size:12px;color:#8b949e;margin-top:3px}
+.dk-badges{display:flex;gap:8px;flex-wrap:wrap}
+.dk-badge{border-radius:6px;padding:6px 12px;font-size:12px;font-weight:700;text-transform:uppercase;letter-spacing:.05em;border:1px solid}
+.dk-badge.up{background:rgba(63,185,80,.12);color:#3fb950;border-color:rgba(63,185,80,.4)}.dk-badge.dn{background:rgba(248,81,73,.12);color:#f85149;border-color:rgba(248,81,73,.4)}.dk-badge.neu{background:rgba(139,148,158,.1);color:#c9d1d9;border-color:#30363d}
+.dk-kpis{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:10px;margin-bottom:14px}
+@media(max-width:1000px){.dk-kpis{grid-template-columns:repeat(2,minmax(0,1fr))}}
+.dk-k{background:linear-gradient(180deg,#1c2128,#161b22);border:1px solid #30363d;border-radius:10px;padding:11px 13px;position:relative}
+.dk-k.up{border-color:rgba(63,185,80,.45);box-shadow:inset 3px 0 0 #3fb950}.dk-k.dn{border-color:rgba(248,81,73,.45);box-shadow:inset 3px 0 0 #f85149}
+.dk-k>span{display:block;font-size:10.5px;text-transform:uppercase;letter-spacing:.07em;color:#8b949e}
+.dk-k>b{display:block;font-size:22px;font-weight:650;margin:3px 0 2px;font-variant-numeric:tabular-nums;color:#f0f6fc}
+.dk-k small{font-size:11.5px;color:#8b949e;line-height:1.5}
+.dk-g{position:relative;height:6px;border-radius:3px;margin-top:6px;background:linear-gradient(90deg,#3fb950,#d29922 50%,#f85149)}
+.dk-g i{position:absolute;top:-3px;width:3px;height:12px;background:#f0f6fc;border-radius:2px;margin-left:-1px}
+.dk-grid{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:14px;margin-bottom:14px}
+.dk-grid2{display:grid;grid-template-columns:minmax(0,1.15fr) minmax(0,1fr);gap:14px}
+@media(max-width:1000px){.dk-grid,.dk-grid2{grid-template-columns:1fr}}
+.dk-card{background:#161b22;border:1px solid #30363d;border-radius:12px;padding:14px 16px;margin-bottom:14px}
+.dk-grid>.dk-card{margin-bottom:0}
+.dk-sec{display:flex;justify-content:space-between;align-items:center;gap:8px;flex-wrap:wrap;font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.09em;color:#f0b429;margin-bottom:10px}
+.dk-h{font-size:10.5px;font-weight:700;text-transform:uppercase;letter-spacing:.07em;color:#58a6ff;margin-top:10px}
+.dk-card p{font-size:13.5px;line-height:1.65;color:#c9d1d9;margin:3px 0 4px}
+.dk-card p b{color:#f0f6fc}
+.dk-t{width:100%;border-collapse:collapse;font-size:12.5px;font-family:inherit}
+.dk-t th,.dk-t td{text-align:left!important;font-family:inherit!important;font-size:12.5px}.dk-t th{font-size:10.5px!important}
+.dk-wrap table{background:none}
+.dk-t th{font-size:10.5px;text-transform:uppercase;letter-spacing:.06em;color:#8b949e;text-align:left;padding:6px 8px;border-bottom:1px solid #30363d}
+.dk-t td{padding:8px;border-bottom:1px solid #21262d;vertical-align:top;color:#c9d1d9;line-height:1.5}
+.dk-t td.b{font-weight:650;color:#e6edf3;white-space:nowrap}
+.dk-x td,.dk-x th{white-space:nowrap;padding:7px 9px}.dk-x td{font-variant-numeric:tabular-nums}.dk-wrap .mu{color:#6e7681;font-size:11px}
+.dk-card p br+b,.dk-card p b{color:#f0f6fc}
+.dk-tag{display:inline-block;border-radius:4px;padding:2px 8px;font-size:10.5px;font-weight:700;text-transform:uppercase}
+.dk-tag.up{background:rgba(63,185,80,.15);color:#3fb950}.dk-tag.dn{background:rgba(248,81,73,.15);color:#f85149}.dk-tag.neu{background:rgba(139,148,158,.12);color:#8b949e}
+.dk-note{font-size:11.5px;color:#8b949e;margin-top:8px;line-height:1.5}
+.dk-cb{position:relative;height:290px}.dk-cb.tall{height:340px}
+.dk-seg{display:inline-flex;gap:4px;text-transform:none;letter-spacing:0;font-weight:500}
+.dk-seg button{background:#0d1117;border:1px solid #30363d;color:#c9d1d9;border-radius:99px;padding:3px 11px;font-size:11.5px;cursor:pointer}
+.dk-seg button.on{background:#f0b429;color:#0d1117;border-color:#f0b429;font-weight:700}
+.dk-mapk{display:flex;gap:16px;flex-wrap:wrap;font-size:12px;color:#8b949e;margin:-2px 0 10px}
+.dk-mapk b{color:#e6edf3}.dk-mapk .c b{color:#4f8ef7}.dk-mapk .p b{color:#e05d5d}
 </style>
 <base target="_blank">
 <base target="_blank">
@@ -209,7 +256,8 @@ tr.atm .sk{background:rgba(240,180,41,.22)!important;color:var(--atm)!important}
 
 <!-- MAIN NAV -->
 <div class="nav">
-  <div class="nav-tab on" onclick="showSec('matrix',this)">Option Matrix</div>
+  <div class="nav-tab on dk-navtab" onclick="showSec('desk',this)">◆ Vol Desk</div>
+  <div class="nav-tab" onclick="showSec('matrix',this)">Option Matrix</div>
   <div class="nav-tab" onclick="showSec('charts',this)">Charts</div>
   <div class="nav-tab" onclick="showSec('summary',this)">Rankings</div>
   <div class="nav-tab" onclick="showSec('gamma',this)">⬡ Gamma Profile</div>
@@ -223,8 +271,11 @@ tr.atm .sk{background:rgba(240,180,41,.22)!important;color:var(--atm)!important}
 <div class="nav-tab" onclick="showSec('portfolio',this)">◆ Portfolio</div>
 </div>
 
+<!-- VOL DESK -->
+<div class="sec on" id="sec-desk"><div class="dk-wrap" id="desk-body"><div class="dk-empty">Loading vol desk…</div></div></div>
+
 <!-- MATRIX SECTION -->
-<div class="sec on" id="sec-matrix">
+<div class="sec" id="sec-matrix">
   <div class="stabs">
     <span class="stab-grp">OI</span>
     <button class="stab on" onclick="setTab('oi',this)">Open Interest</button>
@@ -1642,11 +1693,16 @@ async function fetchCSVFromGitHub() {
 
     // Convert CSV rows back to the internal days/futPrices structure
     // so ALL existing rendering code works unchanged
-    loadFromCSVRows(rows);
+    // skip incomplete reports (e.g. ICE's short "traded strikes only" DMR) — far fewer rows than a normal day
+    const _cnt = {}; rows.forEach(r => { _cnt[r.date] = (_cnt[r.date] || 0) + 1; });
+    const _vals = Object.values(_cnt).sort((a, b) => a - b), _med = _vals[Math.floor(_vals.length / 2)] || 0;
+    const _bad = Object.keys(_cnt).filter(d => _cnt[d] < 0.5 * _med);
+    const rowsOk = _bad.length ? rows.filter(r => !_bad.includes(r.date)) : rows;
+    loadFromCSVRows(rowsOk);
 
     hideOv();
     renderAll();
-    setSB(`Loaded ${rows.length} rows from CSV · ${latestDate} · ${activeCommodity}`);
+    setSB(`Loaded ${rowsOk.length} rows from CSV · ${latestDate} · ${activeCommodity}` + (_bad.length ? ` · skipped incomplete report ${_bad.join(', ')}` : ''));
 
   } catch(e) {
     hideOv();
@@ -2211,6 +2267,7 @@ function showSec(id,el){
   if(id==='strategy')initStrategy();
   if(id==='stratlab')initStratLab();
   if(id==='volsmile')renderVolSmile();
+  if(id==='desk'&&window.Desk)Desk.redraw();
   if(id==='sentiment')renderSentiment();
   if(id==='oichanges'&&latestDate)renderOIChanges();
   if(id==='portfolio')initPortfolio();
@@ -4099,5 +4156,6 @@ function initStratLab(){
 }
 
 </script>
+<script src="js/desk.js?v=1"></script>
 </body>
 </html>
