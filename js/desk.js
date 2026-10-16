@@ -87,7 +87,8 @@
     } else {
       ds.push({ label: 'ATM implied vol', data: H.dates.map(function (d, i) { return { x: d, y: H.atm[i] }; }), borderColor: C.atm, pointRadius: 2.5, borderWidth: 2, spanGaps: false });
     }
-    if (H.rv20) ds.push({ label: 'Realized vol (20d)', data: H.rv20.filter(function (p) { return ivRange === 'long' || p[0] >= H.dates[0]; }).map(function (p) { return { x: p[0], y: p[1] }; }), borderColor: C.rv, borderDash: [4, 3], pointRadius: 0, borderWidth: 1.4 });
+    var rvSrc = (ivRange === 'long' && B.rvlong) ? B.rvlong : (H.rv20 || []).filter(function (p) { return ivRange === 'long' || p[0] >= H.dates[0]; });
+    if (rvSrc.length) ds.push({ label: 'Realized vol (20d' + (ivRange === 'long' ? ', weekly' : '') + ')', data: rvSrc.map(function (p) { return { x: p[0], y: p[1] }; }), borderColor: '#58a6ff', borderDash: [4, 3], pointRadius: 0, borderWidth: 1.5 });
     var labs = {}; ds.forEach(function (d) { d.data.forEach(function (p) { labs[p.x] = 1; }); });
     charts.iv = new Chart($('dk-iv'), { type: 'line', data: { labels: Object.keys(labs).sort(), datasets: ds },
       options: base({ scales: { x: { ticks: { color: C.txt, maxTicksLimit: 8, font: { size: 10 } }, grid: { color: C.grid } }, y: { ticks: { color: C.txt, callback: function (v) { return v + '%'; } }, grid: { color: C.grid } } } }) });

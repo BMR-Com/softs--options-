@@ -111,20 +111,29 @@ def yahoo(T):
 
 
 def bloomberg_iv_ct():
-    """Front-month cotton implied vol history (Bloomberg HIST_CALL_IMP_VOL), 2000 onward — Mar/May/Jul/Dec only."""
+    """Front-month cotton (Mar/May/Jul/Dec) from Bloomberg, 2000 onward: implied vol (HIST_CALL_IMP_VOL) and
+    20-day realized vol from within-contract daily returns (roll days skipped)."""
     try:
         raw = remote("cotton-price/main/data/cotton_raw.csv", "bmr-com/cotton-price/data/cotton_raw.csv")
         d = pd.read_csv(io.BytesIO(raw), low_memory=False, na_values=["#N/A N/A"])
         d["Dates"] = pd.to_datetime(d.Dates, format="mixed"); d = d.set_index("Dates").sort_index()
         def front(m):
             return "MAR" if m in (11, 12, 1) else "MAY" if m in (2, 3) else "JUL" if m in (4, 5) else "DEC"
-        iv = pd.Series([d.at[i, f"CT{front(i.month)}1 Comdty HIST_CALL_IMP_VOL"] for i in d.index], index=d.index, dtype=float)
-        return iv[(iv > 3) & (iv < 120)].dropna()
+        fr = [front(i.month) for i in d.index]
+        iv = pd.Series([d.at[i, f"CT{f}1 Comdty HIST_CALL_IMP_VOL"] for i, f in zip(d.index, fr)], index=d.index, dtype=float)
+        px_same = pd.Series([d.at[i, f"CT{f}1 Comdty PX_LAST"] for i, f in zip(d.index, fr)], index=d.index, dtype=float)
+        # yesterday's price of today's front contract, so roll days still compare like with like
+        px_prev = pd.Series([d[f"CT{f}1 Comdty PX_LAST"].shift(1).iloc[k] for k, f in enumerate(fr)], index=d.index, dtype=float)
+        lr = np.log(px_same / px_prev)
+        lr = lr[lr.abs() < 0.15]
+        rv = (lr.rolling(20).std() * math.sqrt(252) * 100).dropna()
+        iv = iv[(iv > 3) & (iv < 120)].dropna()
+        iv.attrs["rv20"] = rv
+        return iv
     except Exception as ex:
         print("Bloomberg IV history unavailable:", ex); return None
 
 
-# ─────────────────────────── build ───────────────────────────
 def build(T, px, ivhist):
     f = CSV / f"{T}_MASTER.csv"
     if not f.exists():
@@ -485,7 +494,17 @@ def build(T, px, ivhist):
         hist_out["rv20"] = [[d.strftime("%Y-%m-%d"), round(float(v), 2)] for d, v in rv.items()]
         pp = px[(px.index >= H.index[0] - pd.Timedelta(days=10)) & (px.index <= last)]
         hist_out["px"] = [[d.strftime("%Y-%m-%d"), round(float(v), 2)] for d, v in pp.close.items()]
-    return {"ticker": T, "label": LABEL[T], "unit": UNIT[T], "date": last.strftime("%Y-%m-%d"), "skipped": skipped,
+    rvlong = None
+    if ivhist is not None and ivhist.attrs.get("rv20") is not None:
+        rvb = ivhist.attrs["rv20"]
+        parts = [rvb]
+        if ret_series is not None:
+            parts.append(ret_series[ret_series.index > rvb.index.max()].dropna())
+        rvs_ = pd.concat(parts).sort_index()
+        wk = rvs_.resample("W-FRI").last().dropna()
+        wk = wk[(wk.index > last - pd.Timedelta(days=5 * 365)) & (wk.index <= last + pd.Timedelta(days=6))]
+        rvlong = [[d.strftime("%Y-%m-%d"), round(float(v), 2)] for d, v in wk.items()]
+    return {"ticker": T, "label": LABEL[T], "unit": UNIT[T], "date": last.strftime("%Y-%m-%d"), "skipped": skipped, "rvlong": rvlong,
             "front": fe, "front_label": exp_label(fe), "F": F, "dte": dte, "atm": a, "dIV1": dIV1, "dIV5": dIV5,
             "rr25": None if pd.isna(cur.rr25) else float(cur.rr25), "bf25": None if pd.isna(cur.bf25) else float(cur.bf25), "dRR5": dRR5,
             "pct1y": pct1y, "pct5y": pct5y, "pct_lbl": pct_lbl, "rv20": rv20, "rv60": rv60, "vrp": vrp, "r1": r1, "r5": r5,
