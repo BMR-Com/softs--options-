@@ -15,7 +15,8 @@ ROOT = Path(__file__).resolve().parent.parent
 CSV = ROOT / "data" / "csv"
 OUT = ROOT / "data" / "web"
 RAW = "https://raw.githubusercontent.com/BMR-Com"
-LOCAL = os.getenv("DESK_LOCAL")           # optional folder with local clones
+LOCAL = os.getenv("DESK_LOCAL")
+WINDOW_DAYS = 9          # latest report plus the prior week (calendar days), so week-on-week comparisons have a base           # optional folder with local clones
 MONTHS = {"JAN": 1, "FEB": 2, "MAR": 3, "APR": 4, "MAY": 5, "JUN": 6, "JUL": 7, "AUG": 8, "SEP": 9, "OCT": 10, "NOV": 11, "DEC": 12}
 LABEL = {"CT": "Cotton No.2", "KC": "Coffee C", "SB": "Sugar No.11"}
 UNIT = {"CT": "¢/lb", "KC": "¢/lb", "SB": "¢/lb"}
@@ -138,6 +139,9 @@ def build(T, px, ivhist):
     ok = daily[(daily.rows >= 0.6 * ref.rows.fillna(daily.rows)) & (daily.oi >= 0.6 * ref.oi.fillna(daily.oi))].index
     skipped = [d.strftime("%Y-%m-%d") for d in daily.index if d not in ok]
     m = m[m.date.isin(ok)]
+    # use only the most recent week of reports (older archive stretches are not comparable)
+    if len(m):
+        m = m[m.date >= m.date.max() - pd.Timedelta(days=WINDOW_DAYS)]
     dates = sorted(m.date.unique())
     if len(dates) < 2:
         return None
@@ -204,8 +208,8 @@ def build(T, px, ivhist):
                 ivlong.append([(prev_d + pd.Timedelta(days=7)).strftime("%Y-%m-%d"), None])   # break the line over data gaps
             ivlong.append([d.strftime("%Y-%m-%d"), round(float(v), 2)]); prev_d = d
     elif a is not None:
-        s = H.atm.dropna(); pct1y = float((s < a).mean() * 100) if len(s) > 20 else None
-    pct_lbl = "of the past year" if ivhist is not None else f"of reports since {H.index[0]:%b %Y}"
+        pct1y = None          # no long implied-vol history for this market
+    pct_lbl = "of the past year" if ivhist is not None else "no long history"
 
     # term structure & smiles (today and ~1 week ago)
     def term(dt):
@@ -262,7 +266,7 @@ def build(T, px, ivhist):
     def contract_rv(con):
         if fu is None:
             return None, 0
-        x = fu[(fu.contract == con) & (fu.date <= last)].sort_values("date")
+        x = fu[(fu.contract == con) & (fu.date <= last) & (fu.date >= last - pd.Timedelta(days=45))].sort_values("date")
         x = x[x.settle > 0]
         gap = x.date.diff().dt.days
         lr = np.log(x.settle / x.settle.shift(1))[(gap <= 4)]
@@ -357,7 +361,7 @@ def build(T, px, ivhist):
     dIV1, dIV5 = chg("atm", d1), chg("atm", w1)
     dRR5 = chg("rr25", w1)
     cOI5 = chg("cOI", w1); pOI5 = chg("pOI", w1)
-    pc_avg = float(H.pc_oi.tail(20).mean())
+    pc_avg = float(H.pc_oi.mean())
     vol5 = H[H.index > last - pd.Timedelta(days=7)]
     pcv5 = float(vol5.pVol.sum() / vol5.cVol.sum()) if vol5.cVol.sum() > 0 else None
     pcv_all = float(H.pVol.sum() / H.cVol.sum()) if H.cVol.sum() > 0 else None
@@ -402,7 +406,7 @@ def build(T, px, ivhist):
     if not pd.isna(cur.pc_oi):
         z = (cur.pc_oi - pc_avg)
         tilt = "bearish" if cur.pc_oi > pc_avg * 1.08 else "bullish" if cur.pc_oi < pc_avg * 0.92 else "neutral"
-        add("Put/call positioning", tilt, f"Put/call open interest {cur.pc_oi:.2f} vs a 20-report average of {pc_avg:.2f}"
+        add("Put/call positioning", tilt, f"Put/call open interest {cur.pc_oi:.2f} vs {pc_avg:.2f} average over the week"
             + (f"; put/call volume over the past week {pcv5:.2f}" if pcv5 else "") + " — "
             + ("put-heavy positioning; in this market heavy put demand has more often been right than contrarian (short history)." if tilt == "bearish" else
                "call-heavy positioning (short history)." if tilt == "bullish" else "positioning near its recent norm."))
