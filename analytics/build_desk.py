@@ -304,7 +304,10 @@ def build(T, px, ivhist):
             c0, p0 = delta_iv(gw, "C"), delta_iv(gw, "P"); rr_wk = c0 - p0 if c0 is not None and p0 is not None else None
         r.update({"atm": a_now, "dIV": (a_now - a_wk) if a_now is not None and a_wk is not None else None,
                   "rr25": rr_now, "dRR": (rr_now - rr_wk) if rr_now is not None and rr_wk is not None else None})
-        rv, nrv = contract_rv(uf); r["rv"] = rv; r["rv_n"] = nrv
+        rv, nrv = contract_rv(uf)
+        if rv is None or nrv < 15:          # too few daily settlements in the recent window: use the front contract's 20-day realized vol
+            rv = rv20; r["rv_src"] = "front 20d"
+        r["rv"] = rv; r["rv_n"] = nrv
         r["vrp"] = (a_now - rv) if a_now is not None and rv is not None else None
         cO, pO = int(g0[g0.call_put == "C"].open_interest.sum()), int(g0[g0.call_put == "P"].open_interest.sum())
         cO0 = int(gw[gw.call_put == "C"].open_interest.sum()) if gw is not None and len(gw) else None
