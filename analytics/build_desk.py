@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-build_desk.py — daily options "vol desk" for ICE softs (CT, KC, SB).
+build_desk.py — daily options "vol desk" for ICE softs (CT, KC, SB, CC).
 
 Reads the ICE settlement archive (data/csv/<T>_MASTER.csv) plus public BMR-Com price data and writes
 data/web/<T>_desk.json for the Vol Desk tab: implied vol level, term structure and smile, skew,
@@ -18,11 +18,11 @@ RAW = "https://raw.githubusercontent.com/BMR-Com"
 LOCAL = os.getenv("DESK_LOCAL")
 WINDOW_DAYS = 9          # latest report plus the prior week (calendar days), so week-on-week comparisons have a base           # optional folder with local clones
 MONTHS = {"JAN": 1, "FEB": 2, "MAR": 3, "APR": 4, "MAY": 5, "JUN": 6, "JUL": 7, "AUG": 8, "SEP": 9, "OCT": 10, "NOV": 11, "DEC": 12}
-LABEL = {"CT": "Cotton No.2", "KC": "Coffee C", "SB": "Sugar No.11"}
-UNIT = {"CT": "¢/lb", "KC": "¢/lb", "SB": "¢/lb"}
-MULT = {"CT": 50000, "KC": 37500, "SB": 112000}     # lbs per contract
+LABEL = {"CT": "Cotton No.2", "KC": "Coffee C", "SB": "Sugar No.11", "CC": "Cocoa"}
+UNIT = {"CT": "¢/lb", "KC": "¢/lb", "SB": "¢/lb", "CC": "$/t"}
+MULT = {"CT": 50000, "KC": 37500, "SB": 112000, "CC": 10}     # lbs per contract
 # main option months per market (serials map to these futures)
-MAIN = {"CT": ("MAR", "MAY", "JUL", "DEC"), "KC": ("MAR", "MAY", "JUL", "SEP", "DEC"), "SB": ("MAR", "MAY", "JUL", "OCT")}
+MAIN = {"CT": ("MAR", "MAY", "JUL", "DEC"), "KC": ("MAR", "MAY", "JUL", "SEP", "DEC"), "SB": ("MAR", "MAY", "JUL", "OCT"), "CC": ("MAR", "MAY", "JUL", "SEP", "DEC")}
 
 
 def remote(path, local_rel):
@@ -448,7 +448,8 @@ def build(T, px, ivhist):
         + (f"({dIV1:+.1f} pts on the day, {dIV5:+.1f} on the week)" if dIV1 is not None and dIV5 is not None else "")
         + (f", {ordn(pct1y)} percentile {pct_lbl}" if pct1y is not None else "")
         + (f"; 20-day realized {rv20:.1f}%" if rv20 is not None else "") + ". "
-        + (f"Expected 1-sd move: ±{em['week']:.2f}¢ this week, ±{em['expiry']:.2f}¢ to expiry ({F - em['expiry']:.2f}–{F + em['expiry']:.2f})." if em else ""))})
+        + ((f"Expected 1-sd move: ±${em['week']:,.0f} this week, ±${em['expiry']:,.0f} to expiry ({F - em['expiry']:,.0f}–{F + em['expiry']:,.0f})." if T == "CC" else
+           f"Expected 1-sd move: ±{em['week']:.2f}¢ this week, ±{em['expiry']:.2f}¢ to expiry ({F - em['expiry']:.2f}–{F + em['expiry']:.2f}).") if em else ""))})
     if mp:
         T_.append({"h": "Positioning map", "t": (
             f"{mp['label']}: largest call open interest above the market at **{mp['call_wall']}**, largest put open interest below at **{mp['put_wall']}**; "
@@ -535,7 +536,7 @@ def main():
     OUT.mkdir(parents=True, exist_ok=True)
     ivct = bloomberg_iv_ct()
     idx = {}
-    for T in ("CT", "KC", "SB"):
+    for T in ("CT", "KC", "SB", "CC"):
         try:
             b = build(T, yahoo(T), ivct if T == "CT" else None)
         except Exception as ex:

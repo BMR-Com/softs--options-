@@ -4,7 +4,7 @@ ICE Options Analytics CSV Archiver (Single File Per Commodity)
 ================================================================
 Processes ICE Daily Market Report (DMR) PDFs and appends to ONE master CSV per commodity.
 
-Supports: CT (Cotton No.2), KC (Coffee C), SB (Sugar No.11)
+Supports: CT (Cotton No.2), KC (Coffee C), SB (Sugar No.11), CC (Cocoa)
 
 Usage:
     # Process new PDFs and append to master CSV
@@ -95,6 +95,14 @@ COMMODITIES = {
             'MAR29':'2029-02-15'
         },
         'exp_order': ['MAY26','JUN26','JUL26','AUG26','OCT26','JAN27','MAR27','MAY27','JUL27','OCT27','JAN28','MAR28','MAY28','JUL28','OCT28','JAN29','MAR29']
+    },
+    'CC': {
+        'label': 'Cocoa', 'ticker': 'CC', 'unit': '$/t',
+        'option_prefix': 'CC', 'futures_prefix': 'CC',
+        'strike_step': 50, 'contract_size': 10,
+        # ICE rule from the Jun 2025 serial / Jul 2025 regular expiries: second Friday of the month before the option month
+        'ltd': {'MAY26': '2026-04-10', 'JUN26': '2026-05-08', 'JUL26': '2026-06-12', 'AUG26': '2026-07-10', 'SEP26': '2026-08-14', 'OCT26': '2026-09-11', 'NOV26': '2026-10-09', 'DEC26': '2026-11-13', 'JAN27': '2026-12-11', 'FEB27': '2027-01-08', 'MAR27': '2027-02-12', 'APR27': '2027-03-12', 'MAY27': '2027-04-09', 'JUN27': '2027-05-14', 'JUL27': '2027-06-11', 'AUG27': '2027-07-09', 'SEP27': '2027-08-13', 'OCT27': '2027-09-10', 'NOV27': '2027-10-08', 'DEC27': '2027-11-12', 'JAN28': '2027-12-10', 'FEB28': '2028-01-14', 'MAR28': '2028-02-11', 'APR28': '2028-03-10', 'MAY28': '2028-04-14', 'JUN28': '2028-05-12', 'JUL28': '2028-06-09', 'AUG28': '2028-07-14', 'SEP28': '2028-08-11', 'OCT28': '2028-09-08', 'NOV28': '2028-10-13', 'DEC28': '2028-11-10', 'JAN29': '2028-12-08', 'FEB29': '2029-01-12', 'MAR29': '2029-02-09'},
+        'exp_order': ['MAY26', 'JUN26', 'JUL26', 'AUG26', 'SEP26', 'OCT26', 'NOV26', 'DEC26', 'JAN27', 'FEB27', 'MAR27', 'APR27', 'MAY27', 'JUN27', 'JUL27', 'AUG27', 'SEP27', 'OCT27', 'NOV27', 'DEC27', 'JAN28', 'FEB28', 'MAR28', 'APR28', 'MAY28', 'JUN28', 'JUL28', 'AUG28', 'SEP28', 'OCT28', 'NOV28', 'DEC28', 'JAN29', 'FEB29', 'MAR29']
     }
 }
 
@@ -186,7 +194,7 @@ def parse_futures_pdf(text: str, ticker: str) -> Dict[str, float]:
 def detect_commodity_from_filename(filename: str) -> Optional[str]:
     """Auto-detect commodity ticker from PDF filename."""
     basename = os.path.basename(filename).upper()
-    for ticker in ['CT', 'KC', 'SB']:
+    for ticker in ['CT', 'KC', 'SB', 'CC']:
         if basename.startswith(ticker + '_') or basename.startswith(ticker + '-'):
             return ticker
     return None
@@ -196,11 +204,11 @@ def parse_options_pdf(text: str, ticker: str) -> Dict[str, Any]:
     for line in text.split('\n'):
         line = line.strip()
         if not line.startswith(ticker): continue
-        pattern = rf'^{ticker}\s+([\w]+-\d{{2}})\s+([\d.]+)\s+([CP])\s+([\d.]+)\s+(.*)'
+        pattern = rf'^{ticker}\s+([\w]+-\d{{2}})\s+([\d.,]+)\s+([CP])\s+([\d.]+)\s+(.*)'
         m = re.match(pattern, line)
         if not m: continue
         exp = norm_exp(m.group(1))
-        strike = float(m.group(2))
+        strike = float(m.group(2).replace(',', ''))
         pc = m.group(3)
         delta = float(m.group(4))
         if not exp: continue
@@ -273,6 +281,14 @@ def get_underlying_fut(opt_exp: str, ticker: str) -> str:
         elif mon == 6: return f'JUL{m.group(2)}'
         elif mon in [8, 9]: return f'OCT{m.group(2)}'
         elif mon in [11, 12]: return f'MAR{str(yr+1).zfill(2)}'
+        return opt_exp
+    elif ticker == 'CC':
+        # regular Mar, May, Jul, Sep, Dec; a serial option's underlying is the next regular month
+        if mon in [1, 2]: return f'MAR{m.group(2)}'
+        elif mon == 4: return f'MAY{m.group(2)}'
+        elif mon == 6: return f'JUL{m.group(2)}'
+        elif mon == 8: return f'SEP{m.group(2)}'
+        elif mon in [10, 11]: return f'DEC{m.group(2)}'
         return opt_exp
     return opt_exp
 
@@ -475,7 +491,7 @@ def process_directory(pdf_dir: str, output_dir: str, ticker: Optional[str] = Non
         tickers_to_process = [str(ticker).strip().upper()]
     else:
         # Always process all 3 commodities
-        tickers_to_process = ['CT', 'KC', 'SB']
+        tickers_to_process = ['CT', 'KC', 'SB', 'CC']
 
     logger.info(f"Will process commodities: {tickers_to_process}")
 
@@ -551,7 +567,7 @@ def main():
     parser.add_argument('--pdf-dir', help='Directory with PDF pairs')
     parser.add_argument('--output-dir', help='Output directory')
     parser.add_argument('--master-csv', help='Path to master CSV file')
-    parser.add_argument('--ticker', default=None, choices=['CT','KC','SB'])
+    parser.add_argument('--ticker', default=None, choices=['CT','KC','SB','CC'])
     parser.add_argument('--stats', action='store_true', help='Show stats for master CSV')
     parser.add_argument('--cleanup', action='store_true', help='Remove PDFs older than 7 days after processing')
     parser.add_argument('--cleanup-days', type=int, default=7, help='Days to keep PDFs before cleanup (default: 7)')

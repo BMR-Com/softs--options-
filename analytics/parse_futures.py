@@ -49,7 +49,7 @@ def parse(path, T):
 
 
 def main():
-    for T in ("CT", "KC", "SB"):
+    for T in ("CT", "KC", "SB", "CC"):
         out = CSV / f"{T}_FUTURES.csv"
         old = pd.read_csv(out) if out.exists() else pd.DataFrame(columns=["date", "contract"])
         have = set(old.date.astype(str)) if len(old) else set()

@@ -204,6 +204,7 @@ tr.atm .sk{background:rgba(240,180,41,.22)!important;color:var(--atm)!important}
       <button class="comm-tab on" data-comm="CT" onclick="switchCommodity('CT')" style="background:none;border:0.5px solid var(--border);border-radius:4px 4px 0 0;color:var(--atm);font-family:'Courier New',monospace;font-size:9px;font-weight:700;padding:3px 10px;cursor:pointer;letter-spacing:.05em;transition:all .15s">CT</button>
       <button class="comm-tab" data-comm="KC" onclick="switchCommodity('KC')" style="background:none;border:0.5px solid var(--border);border-radius:4px 4px 0 0;color:var(--text3);font-family:'Courier New',monospace;font-size:9px;font-weight:700;padding:3px 10px;cursor:pointer;letter-spacing:.05em;transition:all .15s">KC</button>
       <button class="comm-tab" data-comm="SB" onclick="switchCommodity('SB')" style="background:none;border:0.5px solid var(--border);border-radius:4px 4px 0 0;color:var(--text3);font-family:'Courier New',monospace;font-size:9px;font-weight:700;padding:3px 10px;cursor:pointer;letter-spacing:.05em;transition:all .15s">SB</button>
+      <button class="comm-tab" data-comm="CC" onclick="switchCommodity('CC')" style="background:none;border:0.5px solid var(--border);border-radius:4px 4px 0 0;color:var(--text3);font-family:'Courier New',monospace;font-size:9px;font-weight:700;padding:3px 10px;cursor:pointer;letter-spacing:.05em;transition:all .15s">CC</button>
     </div>
     <button onclick="toggleManualUpload()" title="Manual upload" style="background:none;border:0.5px solid var(--border2);border-radius:4px;color:var(--text3);font-size:9px;padding:2px 8px;cursor:pointer;margin-left:8px;font-family:'Courier New',monospace">&#8593; upload</button>
   </div>
@@ -715,6 +716,7 @@ tr.atm .sk{background:rgba(240,180,41,.22)!important;color:var(--atm)!important}
           <option value="CT">CT</option>
           <option value="KC">KC</option>
           <option value="SB">SB</option>
+          <option value="CC">CC</option>
         </select>
         <select id="port-type" onchange="onPortTypeChange()" style="background:var(--bg3);border:0.5px solid var(--border2);border-radius:3px;color:var(--text);font-family:'Courier New',monospace;font-size:9px;padding:2px 5px">
           <option value="option">Option</option>
@@ -880,6 +882,22 @@ const COMMODITIES = {
     pillars: ['MAY26','JUL26','OCT26','MAR27','JUL27','OCT27'],
     strikeStep: 0.25,
     contractSize: 112000,
+  },
+  CC: {
+    label: 'Cocoa', ticker: 'CC', unit: '$/t',
+    optionPrefix: 'CC', futuresPrefix: 'CC',
+    githubRepo: 'BMR-Com/softs--options-',
+    githubPath: 'data/pdfs',
+    optionSuffix: '',
+    futuresSuffix: '-2',
+    // regular Mar, May, Jul, Sep, Dec; serials Jan, Feb, Apr, Jun, Aug, Oct, Nov (underlying: next regular month)
+    expOrder: ['MAY26', 'JUN26', 'JUL26', 'AUG26', 'SEP26', 'OCT26', 'NOV26', 'DEC26', 'JAN27', 'FEB27', 'MAR27', 'APR27', 'MAY27', 'JUN27', 'JUL27', 'AUG27', 'SEP27', 'OCT27', 'NOV27', 'DEC27', 'JAN28', 'FEB28', 'MAR28', 'APR28', 'MAY28', 'JUN28', 'JUL28', 'AUG28', 'SEP28', 'OCT28', 'NOV28', 'DEC28', 'JAN29', 'FEB29', 'MAR29'],
+    expLbl: {MAY26:'MAY 26',JUN26:'JUN 26',JUL26:'JUL 26',AUG26:'AUG 26',SEP26:'SEP 26',OCT26:'OCT 26',NOV26:'NOV 26',DEC26:'DEC 26',JAN27:'JAN 27',FEB27:'FEB 27',MAR27:'MAR 27',APR27:'APR 27',MAY27:'MAY 27',JUN27:'JUN 27',JUL27:'JUL 27',AUG27:'AUG 27',SEP27:'SEP 27',OCT27:'OCT 27',NOV27:'NOV 27',DEC27:'DEC 27',JAN28:'JAN 28',FEB28:'FEB 28',MAR28:'MAR 28',APR28:'APR 28',MAY28:'MAY 28',JUN28:'JUN 28',JUL28:'JUL 28',AUG28:'AUG 28',SEP28:'SEP 28',OCT28:'OCT 28',NOV28:'NOV 28',DEC28:'DEC 28',JAN29:'JAN 29',FEB29:'FEB 29',MAR29:'MAR 29'},
+    // LTD — ICE rule from the Jun/Jul 2025 expiries: second Friday of the month before the option month
+    ltd: {'MAY26':'2026-04-10', 'JUN26':'2026-05-08', 'JUL26':'2026-06-12', 'AUG26':'2026-07-10', 'SEP26':'2026-08-14', 'OCT26':'2026-09-11', 'NOV26':'2026-10-09', 'DEC26':'2026-11-13', 'JAN27':'2026-12-11', 'FEB27':'2027-01-08', 'MAR27':'2027-02-12', 'APR27':'2027-03-12', 'MAY27':'2027-04-09', 'JUN27':'2027-05-14', 'JUL27':'2027-06-11', 'AUG27':'2027-07-09', 'SEP27':'2027-08-13', 'OCT27':'2027-09-10', 'NOV27':'2027-10-08', 'DEC27':'2027-11-12', 'JAN28':'2027-12-10', 'FEB28':'2028-01-14', 'MAR28':'2028-02-11', 'APR28':'2028-03-10', 'MAY28':'2028-04-14', 'JUN28':'2028-05-12', 'JUL28':'2028-06-09', 'AUG28':'2028-07-14', 'SEP28':'2028-08-11', 'OCT28':'2028-09-08', 'NOV28':'2028-10-13', 'DEC28':'2028-11-10', 'JAN29':'2028-12-08', 'FEB29':'2029-01-12', 'MAR29':'2029-02-09'},
+    pillars: ['DEC26','MAR27','MAY27','JUL27','SEP27','DEC27'],
+    strikeStep: 50,
+    contractSize: 10,
   },
 };
 
@@ -1203,6 +1221,14 @@ function computeLTD(expKey, ticker){
     return ltd;
   }
 
+  if(ticker==='CC'){
+    // All options: 2nd Friday of the month preceding the option month
+    const prevMon=mon===1?12:mon-1; const prevYr=mon===1?yr-1:yr;
+    let ltd=nthWeekday(prevYr,prevMon,5,2);
+    while(!isBusinessDay(ltd))ltd=prevBusinessDay(ltd);
+    return ltd;
+  }
+
   if(ticker==='SB'){
     // All options: 15th of month preceding option month, or next business day
     const prevMon=mon===1?12:mon-1; const prevYr=mon===1?yr-1:yr;
@@ -1310,6 +1336,16 @@ function getUnderlyingFut(optExp){
       return 'MAR'+nextYr;
     }
     return optExp;                                 // regular Mar,May,Jul,Oct
+  }
+
+  // Cocoa (CC): regular Mar,May,Jul,Sep,Dec; serials take the next regular month
+  if(tk==='CC'){
+    if(mon===1||mon===2) return 'MAR'+m[2];
+    if(mon===4)          return 'MAY'+m[2];
+    if(mon===6)          return 'JUL'+m[2];
+    if(mon===8)          return 'SEP'+m[2];
+    if(mon===10||mon===11) return 'DEC'+m[2];
+    return optExp;
   }
 
   // Generic fallback for future commodities: walk forward to next available
