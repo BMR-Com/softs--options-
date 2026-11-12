@@ -73,8 +73,37 @@
       '<div class="dk-grid2"><div><div class="dk-cb tall"><canvas id="dk-oi"></canvas></div></div><div><div class="dk-cb tall"><canvas id="dk-gam"></canvas></div></div></div>' +
       '<div class="dk-note">Left: open interest by strike (calls up, puts down) with today’s change. Right: gross gamma — futures-equivalent lots that change hands per 1¢ move if positions are hedged; the biggest concentrations act as magnets or speed bumps, especially near expiry.</div></div>';
     h += '<div class="dk-card"><div class="dk-sec">Daily flow — volume and open interest</div><div class="dk-cb"><canvas id="dk-flow"></canvas></div></div>';
+    h += rollCard();
     el.innerHTML = h;
     draw();
+  }
+
+
+  // front-month roll and delivery tracker (data/web/roll.json)
+  var RL = null;
+  function rollCard() {
+    var R = RL && RL.markets && RL.markets[T];
+    if (!R) return '<div class="dk-card"><div class="dk-sec">Front-month roll &amp; delivery</div><p class="mu">No ' + T + ' contract is inside its roll window right now.</p></div>';
+    var tone = R.state === 'heavy' ? 'dn' : R.state === 'light' ? 'up' : 'neu';
+    var P = R.path.slice(-12).reverse();
+    return '<div class="dk-card"><div class="dk-sec"><span>Front-month roll &amp; delivery — ' + R.label + ' (' + R.T0_kind + ' ' + R.T0 + ')</span><span class="dk-badge ' + tone + '">' + R.state + (R.pct != null ? ' · ' + ord(R.pct) + ' pct' : '') + '</span></div>' +
+      '<p>' + R.read + '</p><p><b>Spread idea:</b> ' + R.idea.text + '</p>' +
+      '<div class="dk-grid2"><div><div class="dk-cb tall"><canvas id="dk-roll"></canvas></div></div><div><table class="dk-t"><tr><th>Report</th><th>Days to ' + R.T0_kind + '</th><th>OI</th><th>Δ OI</th><th>Volume</th><th>EFP</th><th>% left</th><th>Spread</th><th>% of all OI</th></tr>' +
+      P.map(function (r) { return '<tr><td>' + r.date + '</td><td>' + r.k + '</td><td>' + kf(r.oi) + '</td><td style="color:' + col(r.doi) + '">' + sg(r.doi, 0) + '</td><td>' + kf(r.vol) + '</td><td>' + kf(r.efp) + '</td><td>' + f1(r.rem, 0) + '%</td><td>' + (r.spread == null ? '–' : sg(r.spread, T === 'CC' ? 0 : 2)) + '</td><td>' + f1(r.share, 1) + '%</td></tr>'; }).join('') +
+      '</table></div></div><div class="dk-note">Remaining open interest as % of its level ' + R.K0 + ' business days before ' + R.T0_kind + ' (base: ' + R.base_src + '), against the 10th–90th percentile and median of the same contract month since 2005. Index roll: GSCI 5th–9th, BCOM 6th–10th business day of the month before delivery. ICE report open interest is the previous business day’s. ' + (RL.note || '') + '</div></div>';
+  }
+  function drawRoll() {
+    var R = RL && RL.markets && RL.markets[T]; kill('roll'); if (!R || !document.getElementById('dk-roll')) return;
+    var b = R.band_path, ds = [];
+    if (b) {
+      ds.push({ label: '90th pct', data: b.k.map(function (k, i) { return { x: -k, y: b.p90[i] }; }), borderColor: 'rgba(150,150,150,.5)', borderDash: [3, 3], pointRadius: 0, borderWidth: 1, fill: '+2', backgroundColor: 'rgba(150,150,150,.12)' });
+      ds.push({ label: 'median', data: b.k.map(function (k, i) { return { x: -k, y: b.p50[i] }; }), borderColor: 'rgba(200,200,200,.9)', pointRadius: 0, borderWidth: 1.5 });
+      ds.push({ label: '10th pct', data: b.k.map(function (k, i) { return { x: -k, y: b.p10[i] }; }), borderColor: 'rgba(150,150,150,.5)', borderDash: [3, 3], pointRadius: 0, borderWidth: 1 });
+    }
+    ds.push({ label: R.label, data: R.path.filter(function (r) { return r.rem != null; }).map(function (r) { return { x: -r.k, y: r.rem }; }), borderColor: '#f0b429', backgroundColor: '#f0b429', pointRadius: 3, borderWidth: 2.2 });
+    charts.roll = new Chart(document.getElementById('dk-roll'), { type: 'line', data: { datasets: ds },
+      options: base({ scales: { x: { type: 'linear', title: { display: true, text: 'business days to ' + R.T0_kind, color: C.txt }, ticks: { color: C.txt, callback: function (v) { return -v; } }, grid: { color: C.grid } },
+        y: { min: 0, ticks: { color: C.txt, callback: function (v) { return v + '%'; } }, grid: { color: C.grid } } } }) });
   }
 
   function draw() {
@@ -139,6 +168,7 @@
       { type: 'line', label: 'Put OI', data: H.pOI, borderColor: '#ffaaaa', pointRadius: 0, borderWidth: 1.6, yAxisID: 'y2' }] },
       options: base({ scales: { x: { stacked: true, ticks: { color: C.txt, maxTicksLimit: 10, font: { size: 10 } }, grid: { color: C.grid } }, y: { stacked: true, ticks: { color: C.txt, callback: function (v) { return kf(Math.abs(v)); } }, grid: { color: C.grid }, title: { display: true, text: 'Volume (puts below zero)', color: C.txt } }, y2: { position: 'right', ticks: { color: C.txt, callback: function (v) { return kf(v); } }, grid: { drawOnChartArea: false }, title: { display: true, text: 'Open interest', color: C.txt } } },
         plugins: { legend: { labels: { color: C.txt, boxWidth: 10 } }, tooltip: { callbacks: { label: function (c) { return ' ' + c.dataset.label + ': ' + Math.abs(c.parsed.y).toLocaleString(); } } } } }) });
+      drawRoll();
   }
 
   function load(t) {
@@ -146,7 +176,7 @@
     var el = $('desk-body'); if (!el) return;
     el.innerHTML = '<div class="dk-empty">Loading vol desk…</div>';
     fetch('./data/web/' + T + '_desk.json?t=' + Date.now()).then(function (r) { if (!r.ok) throw 0; return r.json(); })
-      .then(function (d) { D = d; ivRange = d.ivlong ? 'long' : 'short'; render(); })
+      .then(function (d) { D = d; ivRange = d.ivlong ? 'long' : 'short'; return (RL ? Promise.resolve(RL) : fetch('./data/web/roll.json?t=' + Date.now()).then(function (r) { return r.ok ? r.json() : null; }).catch(function () { return null; })).then(function (x) { RL = x; render(); }); })
       .catch(function () { el.innerHTML = '<div class="dk-empty">Vol desk not built yet for ' + T + '.</div>'; });
   }
   document.addEventListener('click', function (e) {

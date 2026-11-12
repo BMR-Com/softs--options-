@@ -110,6 +110,10 @@ jobs:
         continue-on-error: true
         run: python analytics/build_desk.py
 
+      - name: Roll and delivery tracker
+        continue-on-error: true
+        run: python analytics/roll_tracker.py
+
       - name: Commit and push CSV archive
         run: |
           git config --local user.email "action@github.com"
