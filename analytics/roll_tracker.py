@@ -201,7 +201,7 @@ def track(sym, B):
     sp = cur["spread"]
     lines = []
     lines.append(f"{NAME[sym]} {MONS[m - 1].title()} {str(y)[2:]}: {('first notice' if NOTICE[sym] else 'expiry')} {T0.isoformat()} ({k} business days after the latest report). "
-                 f"Open interest {lots_left:,} lots, {cur['rem']:.0f}% of its level {K0} business days before" + (f" (past {MONS[m - 1].title()} contracts at this stage: {lo:.0f}–{hi:.0f}%, median {mid:.0f}%" if mid is not None else "")
+                 f"Open interest {lots_left:,} lots ({cur['share']:.1f}% of all {NAME[sym].lower()} open interest; it was {rows[0]['share']:.1f}% on {rows[0]['date']}), {cur['rem']:.0f}% of its level {K0} business days before" + (f" (past {MONS[m - 1].title()} contracts at this stage: {lo:.0f}–{hi:.0f}%, median {mid:.0f}%" if mid is not None else "")
                  + (f"; in lots since 2016: {llo:,.0f}–{lhi:,.0f}, median {lmid:,.0f})" if lmid is not None else (")" if mid is not None else "")) + ".")
     ox = opt_exp(sym, y, m)
     after_ox = [r for r in rows if pd.Timestamp(r["date"]).date() > ox]
@@ -216,7 +216,7 @@ def track(sym, B):
     if lv("at_T0_lots"):
         a = lv("at_T0_lots")
         lines.append(f"Typical open interest left at {'first notice' if NOTICE[sym] else 'expiry'} for this month: {a['p50']:,.0f} lots (10th–90th pct {a['p10']:,.0f}–{a['p90']:,.0f}).")
-    if sym in STOP:
+    if sym in STOP and k <= 5:
         n_, txt_ = STOP[sym]
         lines.append(f"In {n_}-lot stopping blocks the {lots_left:,} lots open now are {lots_left / n_:,.0f} blocks ({txt_}).")
     rec = [(c, v.get(str(k))) for c, v in B.get("recent", {}).items() if v.get(str(k)) is not None]
@@ -227,6 +227,39 @@ def track(sym, B):
     if sp is not None:
         fmt = (lambda v: f"{v:+,.0f} $/t") if sym == "CC" else (lambda v: f"{v:+.2f}¢")
         lines.append(f"Spread to {nxt[:3].title()} {nxt[3:]}: {fmt(sp)} ({'front over next: inverted' if sp > 0 else 'front under next: carry'})" + (f", {fmt(sp - spr10)} since 10 days before {'notice' if NOTICE[sym] else 'expiry'}" if spr10 is not None and k < 10 else "") + ".")
+    # price of the next contract through the roll (k20 -> k5), from the desk's daily contract closes
+    price_line, cls = None, None
+    try:
+        import io, requests, math
+        mm = {c: i + 1 for i, c in enumerate("FGHJKMNQUVXZ")}
+        code_n = f"{sym}{CODE[MONS.index(nxt[:3])]}20{nxt[3:]}"
+        cp = pd.read_csv(io.StringIO(requests.get(f"https://raw.githubusercontent.com/BMR-Com/Brazil--trade/main/data/contracts/{sym}.csv", timeout=60).text), parse_dates=["date"])
+        cn = cp[cp.contract == code_n].set_index("date").close.sort_index()
+        d20 = pd.Timestamp(shift(T0, -20)); d5 = pd.Timestamp(shift(T0, -5))
+        a = cn[cn.index <= d20]; b = cn[cn.index <= min(d5, cn.index.max())]
+        if len(a) and len(b) and b.index[-1] > a.index[-1]:
+            mv = math.log(b.iloc[-1] / a.iloc[-1])
+            n_ = len(cn[(cn.index > a.index[-1]) & (cn.index <= b.index[-1])])
+            iv = None
+            dj = ROOT / "data" / "web" / f"{sym}_desk.json"
+            if dj.exists():
+                iv = json.loads(dj.read_text()).get("atm")
+            z = mv / (iv / 100 * math.sqrt(max(n_, 1) / 252)) if iv else None
+            cls = "quiet" if abs(mv) < 0.04 else ("big up" if z is not None and z > 2 else "big down" if z is not None and z < -2 else ("up" if mv > 0 else "down"))
+            done = b.index[-1] >= d5
+            price_line = (f"{nxt[:3].title()} {nxt[3:]} futures {mv * 100:+.1f}% from 20 to {'5' if done else str(bdays_between(b.index[-1].date(), T0))} business days before {'first notice' if NOTICE[sym] else 'expiry'}"
+                          + (f" ({z:+.1f} standard deviations of implied vol)" if z is not None else "") + f": {cls} roll" + ("" if done else " so far") + ".")
+            PL = B.get("price_leans", {})
+            lean = PL.get(cls.replace("big ", ""))
+            if lean:
+                price_line += f" History: {lean}."
+            ml = PL.get("month", {}).get(mk)
+            if ml:
+                price_line += f" Season: {ml}."
+    except Exception as e:
+        print(sym, "price line failed:", e)
+    if price_line:
+        lines.append(price_line)
     if state == "heavy" and heavy_lots and not heavy_pct:
         lines.append(f"The share of open interest that has left is normal, but the absolute size is not: {lots_left:,} lots is above the 90th percentile of past {MONS[m - 1].title()} contracts at this stage, because the contract started the roll unusually big. More lots have to be rolled, closed or delivered than usual. "
                      "History: big remaining size predicts a bigger delivery; on its own it has not predicted the spread. Squeezes came when size stayed big after the index roll and deliverable stock was short or costly to take (cotton July 2011 held into notice; July 2012 ran from +2.7 to +13.6¢ over the next contract during and just after the index roll and option expiry, then collapsed to flat by notice; July 2022 the same).")
@@ -244,7 +277,7 @@ def track(sym, B):
             "T0_kind": "first notice" if NOTICE[sym] else "expiry", "k": k, "K0": K0, "oi": lots_left, "rem": cur["rem"], "band": {"lo": lo, "mid": mid, "hi": hi},
             "pct": None if pr is None else round(pr), "lots_band": {"lo": llo, "mid": lmid, "hi": lhi}, "lots_pct": None if lots_pr is None else round(lots_pr), "opt_expiry": opt_exp(sym, y, m).isoformat(), "state": state, "base": base, "base_src": base_src, "roll_window": [w0.isoformat(), w1.isoformat()],
             "rolled_in_window": rolled, "spread": sp, "spread_k10": spr10, "share": cur["share"], "path": rows, "band_path": band,
-            "read": " ".join(lines), "idea": idea, "lot": LOTSIZE[sym], "asof": cur["date"]}
+            "roll_price_class": cls, "read": " ".join(lines), "idea": idea, "lot": LOTSIZE[sym], "asof": cur["date"]}
 
 
 def main():
@@ -255,7 +288,7 @@ def main():
         if sym not in B["markets"]:
             continue
         try:
-            r = track(sym, B["markets"][sym])
+            r = track(sym, {**B["markets"][sym], "price_leans": B.get("price_leans", {}).get(sym, {})})
         except Exception as e:
             print(sym, "roll tracker failed:", e); r = None
         if r and r["k"] <= B["markets"][sym]["K0"] + 5:

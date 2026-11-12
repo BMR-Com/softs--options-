@@ -4565,5 +4565,39 @@
     }
    }
   }
- }
+ },
+ "price_leans": {
+  "CT": {
+   "quiet": "no consistent follow-through after quiet cotton rolls",
+   "up": "no consistent follow-through; a firm first week after notice has been slightly more common",
+   "down": "rolls that ended weak have more often kept sagging into notice and then marked a local low",
+   "month": {
+    "N": "December has tended to weaken against itself in the last week before July notice",
+    "Z": "March has tended to firm in the month after December notice"
+   }
+  },
+  "KC": {
+   "quiet": "quiet coffee rolls have more often been followed by softer prices in the weeks after notice",
+   "up": "rolls that ended firm have more often stayed firm into notice",
+   "down": "rolls that ended weak have more often bounced by the next roll",
+   "month": {
+    "K": "July coffee has tended to weaken in the month after May notice (Brazil harvest)"
+   }
+  },
+  "SB": {
+   "quiet": "no consistent follow-through after quiet sugar rolls",
+   "up": "no consistent follow-through",
+   "down": "rolls that ended weak have more often kept falling for one to four weeks after expiry",
+   "month": {
+    "H": "May sugar has tended to weaken in the month after March expiry (Brazil new crop)"
+   }
+  },
+  "CC": {
+   "quiet": "quiet cocoa rolls have more often been followed by firmer prices in the first two weeks after notice",
+   "up": "no consistent follow-through",
+   "down": "rolls that ended weak have more often bounced into and just after notice",
+   "month": {}
+  }
+ },
+ "price_note": "Move of the next contract from 20 to 5 business days before notice (sugar: expiry): quiet = under 4%; big = beyond 2 standard deviations of the 1-month implied vol over that window."
 }
