@@ -22,7 +22,6 @@ Output:
 """
 
 import os
-import os
 import re
 import sys
 import json
@@ -31,7 +30,7 @@ import argparse
 import logging
 from pathlib import Path
 from datetime import datetime, timedelta
-from typing import Dict, List, Optional, Any
+from typing import Dict, List, Optional, Any, Tuple
 import csv
 
 try:
@@ -110,8 +109,10 @@ RISK_FREE_RATE = 0.045
 CSV_COLUMNS = [
     'date', 'commodity', 'expiry', 'strike', 'call_put', 'settle_price',
     'volume', 'open_interest', 'oi_change', 'delta', 'implied_vol_pct',
-    'black76_price', 'futures_price', 'underlying_fut', 'dte', 'time_to_expiry_yrs'
+    'black76_price', 'futures_price', 'underlying_fut', 'dte', 'time_to_expiry_yrs',
+    'open', 'high', 'low', 'close', 'change', 'exercised', 'block_volume', 'eoo', 'spread_volume'
 ]
+EXTRA = ['open', 'high', 'low', 'close', 'change', 'exercised', 'block_volume', 'eoo', 'spread_volume']
 
 # ═══════════════════════════════════════════════════════════════════════════════
 # PDF EXTRACTION
@@ -119,6 +120,14 @@ CSV_COLUMNS = [
 
 def extract_pdf_text(pdf_path: str) -> str:
     text = ""
+    # poppler's pdftotext is ~50x faster than pdfplumber and keeps one table row per line
+    try:
+        import subprocess
+        out = subprocess.run(["pdftotext", "-layout", pdf_path, "-"], capture_output=True, text=True, timeout=120)
+        if out.returncode == 0 and out.stdout.strip():
+            return out.stdout
+    except Exception:
+        pass
     if HAS_PDFPLUMBER:
         try:
             with pdfplumber.open(pdf_path) as pdf:
@@ -185,7 +194,9 @@ def parse_futures_pdf(text: str, ticker: str) -> Dict[str, float]:
             try: nums.append(float(t.replace(',', '')))
             except: continue
         settle = None
-        if len(nums) >= 7: settle = nums[4]
+        # traded rows: open high low close settle change volume oi oi_change block efp efs spread (13);
+        # untraded rows start at the settle
+        if len(nums) >= 13: settle = nums[4]
         elif len(nums) >= 1: settle = nums[0]
         if settle and math.isfinite(settle) and settle > 0:
             prices[exp] = settle
@@ -217,14 +228,18 @@ def parse_options_pdf(text: str, ticker: str) -> Dict[str, Any]:
             try: nums.append(float(t.replace(',', '')))
             except: continue
         price = vol = oi = oi_change = 0
+        ex = {}
+        # columns: [open high low close] settle change volume oi oi_change exercised block eoo spread
         if len(nums) >= 13:
-            price = nums[4]; vol = round(nums[6]); oi = round(nums[7]); oi_change = round(nums[8])
+            o, h, l, c = nums[0:4]; price = nums[4]; vol = round(nums[6]); oi = round(nums[7]); oi_change = round(nums[8])
+            ex = {'open': o, 'high': h, 'low': l, 'close': c, 'change': nums[5], 'exercised': round(nums[9]), 'block_volume': round(nums[10]), 'eoo': round(nums[11]), 'spread_volume': round(nums[12])}
         elif len(nums) >= 9:
             price = nums[0]; vol = round(nums[2]); oi = round(nums[3]); oi_change = round(nums[4])
-        if oi > 0 or price > 0.005:
+            ex = {'change': nums[1], 'exercised': round(nums[5]), 'block_volume': round(nums[6]), 'eoo': round(nums[7]), 'spread_volume': round(nums[8])}
+        if oi > 0 or price > 0.005 or vol > 0:
             side = 'calls' if pc == 'C' else 'puts'
             if exp not in data[side]: data[side][exp] = {}
-            data[side][exp][strike] = {'oi': oi, 'vol': vol, 'price': price, 'oiChange': oi_change, 'delta': delta}
+            data[side][exp][strike] = {'oi': oi, 'vol': vol, 'price': price, 'oiChange': oi_change, 'delta': delta, **ex}
     return data
 
 # ═══════════════════════════════════════════════════════════════════════════════
@@ -357,7 +372,8 @@ def append_to_master_csv(options_data: Dict, fut_prices: Dict[str, float],
                     'implied_vol_pct': round(iv * 100, 2) if iv else None,
                     'black76_price': round(b76, 4) if b76 > 0 else None,
                     'futures_price': round(fut_price, 2) if fut_price else None,
-                    'underlying_fut': underlying, 'dte': dte, 'time_to_expiry_yrs': round(T, 4)
+                    'underlying_fut': underlying, 'dte': dte, 'time_to_expiry_yrs': round(T, 4),
+                    **{k: c_rec.get(k) for k in EXTRA}
                 })
             p_rec = puts.get(strike)
             if p_rec:
@@ -371,7 +387,8 @@ def append_to_master_csv(options_data: Dict, fut_prices: Dict[str, float],
                     'implied_vol_pct': round(iv * 100, 2) if iv else None,
                     'black76_price': round(b76, 4) if b76 > 0 else None,
                     'futures_price': round(fut_price, 2) if fut_price else None,
-                    'underlying_fut': underlying, 'dte': dte, 'time_to_expiry_yrs': round(T, 4)
+                    'underlying_fut': underlying, 'dte': dte, 'time_to_expiry_yrs': round(T, 4),
+                    **{k: p_rec.get(k) for k in EXTRA}
                 })
 
     if not rows:
@@ -387,7 +404,7 @@ def append_to_master_csv(options_data: Dict, fut_prices: Dict[str, float],
         existing = existing[existing['date'] != report_date]
         # Append new data
         combined = pd.concat([existing, new_df], ignore_index=True)
-        combined = combined.sort_values(['date', 'expiry', 'strike', 'call_put'])
+        combined = combined.reindex(columns=CSV_COLUMNS).sort_values(['date', 'expiry', 'strike', 'call_put'])
         combined.to_csv(master_path, index=False, float_format='%.4f')
         logger.info(f"Updated {master_path}: removed old {report_date}, appended {len(new_df)} new rows. Total: {len(combined)}")
     else:
@@ -481,52 +498,56 @@ def is_valid_pdf(filepath: str) -> bool:
     except Exception:
         return False
 
-def process_directory(pdf_dir: str, output_dir: str, ticker: Optional[str] = None):
-    pdf_dir = Path(pdf_dir)
-    output_dir = Path(output_dir)
-    output_dir.mkdir(parents=True, exist_ok=True)
+def report_kind(path: Path) -> Tuple[Optional[str], Optional[str], Optional[str]]:
+    """(ticker, 'options'|'futures', YYYY-MM-DD) read from the report itself, so re-uploads named -3/-4 etc. are recognised."""
+    t = detect_commodity_from_filename(path.name)
+    head = extract_pdf_text(str(path))[:600] if is_valid_pdf(str(path)) else ""
+    kind = "options" if "Options Daily Market Report" in head else "futures" if "Futures Daily Market Report" in head else None
+    d = parse_date_from_text(head) or parse_date_from_filename(path.name)
+    return t, kind, d
 
-    # Handle empty string as None
-    if ticker and str(ticker).strip():
-        tickers_to_process = [str(ticker).strip().upper()]
-    else:
-        # Always process all 3 commodities
-        tickers_to_process = ['CT', 'KC', 'SB', 'CC']
 
-    logger.info(f"Will process commodities: {tickers_to_process}")
-
-    all_pdfs = [f for f in pdf_dir.glob("*.pdf") if not f.name.endswith('-2.pdf') and is_valid_pdf(str(f))]
-    logger.info(f"Found {len(all_pdfs)} total options PDFs in {pdf_dir}")
-
-    for current_ticker in tickers_to_process:
-        master_path = str(output_dir / f"{current_ticker}_MASTER.csv")
-        ticker_pdfs = [f for f in all_pdfs if detect_commodity_from_filename(str(f)) == current_ticker]
-
-        logger.info(f"{current_ticker}: {len(ticker_pdfs)} PDFs found")
-
-        if not ticker_pdfs:
-            logger.warning(f"No PDFs found for {current_ticker} in {pdf_dir}")
+def process_directory(pdf_dir: str, output_dir: str, ticker: Optional[str] = None) -> List[Path]:
+    """Ingest every report pair in pdf_dir into <T>_MASTER.csv. Returns the PDFs whose data is now in the CSVs
+    (safe to delete). For a date with several uploads the largest file of each kind is used. A day whose options
+    report has under half the previous day's open interest is treated as incomplete: not ingested, PDF kept."""
+    pdf_dir = Path(pdf_dir); output_dir = Path(output_dir); output_dir.mkdir(parents=True, exist_ok=True)
+    tickers = [str(ticker).strip().upper()] if ticker and str(ticker).strip() else ['CT', 'KC', 'SB', 'CC']
+    groups: Dict[Tuple[str, str], Dict[str, List[Path]]] = {}
+    for f in sorted(pdf_dir.glob("*.pdf")):
+        t, kind, d = report_kind(f)
+        if t in tickers and kind and d:
+            groups.setdefault((t, d), {}).setdefault(kind, []).append(f)
+        elif t in tickers:
+            logger.warning(f"Unrecognised or empty PDF {f.name} (kept)")
+    done: List[Path] = []
+    for (t, d), g in sorted(groups.items(), key=lambda x: (x[0][0], x[0][1])):
+        if "options" not in g or "futures" not in g:
+            logger.warning(f"{t} {d}: missing {'options' if 'options' not in g else 'futures'} report, kept for later")
             continue
-
-        processed = failed = 0
-        for opt_pdf in ticker_pdfs:
-            date_part = opt_pdf.stem.replace(f"{current_ticker}_", "")
-            fut_pdf = pdf_dir / f"{current_ticker}_{date_part}-2.pdf"
-            if not fut_pdf.exists():
-                logger.warning(f"No futures PDF for {opt_pdf.name}, skipping")
+        opt = max(g["options"], key=lambda f: f.stat().st_size)
+        fut = max(g["futures"], key=lambda f: f.stat().st_size)
+        master = output_dir / f"{t}_MASTER.csv"
+        # completeness check against the previous ingested day
+        opt_data = parse_options_pdf(extract_pdf_text(str(opt)), COMMODITIES[t]['option_prefix'])
+        oi_new = sum(r['oi'] for side in ('calls', 'puts') for e in opt_data[side].values() for r in e.values())
+        if master.exists():
+            m = pd.read_csv(master, usecols=['date', 'open_interest'])
+            prev = m[m.date < d].groupby('date').open_interest.sum()
+            if len(prev) and oi_new < 0.5 * prev.iloc[-1]:
+                logger.error(f"{t} {d}: options report looks incomplete (OI {oi_new:,} vs {prev.iloc[-1]:,.0f} the day before); kept, please re-upload")
                 continue
-            try:
-                if process_single_day(str(opt_pdf), str(fut_pdf), master_path, current_ticker):
-                    processed += 1
-                else:
-                    failed += 1
-            except Exception as e:
-                logger.error(f"Failed to process {opt_pdf.name}: {e}")
-                failed += 1
-
-        logger.info(f"Complete for {current_ticker}: {processed} days appended to {master_path}, {failed} failed")
-        if os.path.exists(master_path):
-            show_stats(master_path)
+        try:
+            if process_single_day(str(opt), str(fut), str(master), t):
+                done += g["options"] + g["futures"]
+                logger.info(f"{t} {d}: ingested from {opt.name} + {fut.name}")
+        except Exception as e:
+            logger.error(f"{t} {d}: failed: {e}")
+    for t in tickers:
+        mp = output_dir / f"{t}_MASTER.csv"
+        if mp.exists():
+            show_stats(str(mp))
+    return done
 
 # ═══════════════════════════════════════════════════════════════════════════════
 # CLI
@@ -571,6 +592,7 @@ def main():
     parser.add_argument('--stats', action='store_true', help='Show stats for master CSV')
     parser.add_argument('--cleanup', action='store_true', help='Remove PDFs older than 7 days after processing')
     parser.add_argument('--cleanup-days', type=int, default=7, help='Days to keep PDFs before cleanup (default: 7)')
+    parser.add_argument('--delete-processed', action='store_true', help='Delete each PDF once its data is in the CSVs (incomplete or unmatched reports are kept)')
 
     args = parser.parse_args()
 
@@ -588,7 +610,14 @@ def main():
         sys.exit(1)
 
     if args.pdf_dir:
-        process_directory(args.pdf_dir, args.output_dir or './csv_archive', args.ticker)
+        done = process_directory(args.pdf_dir, args.output_dir or './csv_archive', args.ticker)
+        if args.delete_processed:
+            for f in done:
+                try:
+                    f.unlink()
+                except FileNotFoundError:
+                    pass
+            logger.info(f"Deleted {len(done)} processed PDFs; kept {len(list(Path(args.pdf_dir).glob('*.pdf')))}")
         if args.cleanup:
             cleanup_old_pdfs(args.pdf_dir, args.cleanup_days)
     elif args.options_pdf and args.futures_pdf:

@@ -17,7 +17,7 @@ on:
       cleanup:
         description: 'Remove PDFs older than 7 days'
         required: true
-        default: 'true'
+        default: 'false'
       cleanup_days:
         description: 'Days to keep PDFs before cleanup'
         required: true
@@ -42,6 +42,7 @@ jobs:
       - name: Install dependencies
         run: |
           pip install --upgrade pip setuptools wheel
+          sudo apt-get install -y -qq poppler-utils >/dev/null   # pdftotext: fast text extraction
           for i in 1 2 3; do
             pip install pdfplumber pandas numpy requests && break || { echo "Retry $i..."; sleep 10; }
           done
@@ -92,16 +93,16 @@ jobs:
           if [ -n "$TICKER" ] && [ "$TICKER" != "" ]; then
             echo "Processing single commodity: $TICKER"
             if [ "$CLEANUP" = "true" ]; then
-              python options_csv_archiver_single.py                 --pdf-dir ${{ env.PDF_DIR }}                 --output-dir ${{ env.CSV_DIR }}                 --ticker "$TICKER"                 --cleanup                 --cleanup-days "$CLEANUP_DAYS"
+              python options_csv_archiver_single.py                 --pdf-dir ${{ env.PDF_DIR }}                 --output-dir ${{ env.CSV_DIR }}                 --ticker "$TICKER" --delete-processed                 --cleanup                 --cleanup-days "$CLEANUP_DAYS"
             else
-              python options_csv_archiver_single.py                 --pdf-dir ${{ env.PDF_DIR }}                 --output-dir ${{ env.CSV_DIR }}                 --ticker "$TICKER"
+              python options_csv_archiver_single.py                 --pdf-dir ${{ env.PDF_DIR }}                 --output-dir ${{ env.CSV_DIR }}                 --ticker "$TICKER" --delete-processed
             fi
           else
-            echo "Processing ALL commodities (CT, KC, SB)"
+            echo "Processing ALL commodities (CT, KC, SB, CC)"
             if [ "$CLEANUP" = "true" ]; then
-              python options_csv_archiver_single.py                 --pdf-dir ${{ env.PDF_DIR }}                 --output-dir ${{ env.CSV_DIR }}                 --cleanup                 --cleanup-days "$CLEANUP_DAYS"
+              python options_csv_archiver_single.py                 --pdf-dir ${{ env.PDF_DIR }}                 --output-dir ${{ env.CSV_DIR }} --delete-processed                 --cleanup                 --cleanup-days "$CLEANUP_DAYS"
             else
-              python options_csv_archiver_single.py                 --pdf-dir ${{ env.PDF_DIR }}                 --output-dir ${{ env.CSV_DIR }}
+              python options_csv_archiver_single.py                 --pdf-dir ${{ env.PDF_DIR }}                 --output-dir ${{ env.CSV_DIR }} --delete-processed
             fi
           fi
 
@@ -114,7 +115,8 @@ jobs:
           git config --local user.email "action@github.com"
           git config --local user.name "GitHub Action"
 
-          git add ${{ env.CSV_DIR }}/*_MASTER.csv ${{ env.CSV_DIR }}/*_FUTURES.csv data/web/
+          git add ${{ env.CSV_DIR }}/*_MASTER.csv ${{ env.CSV_DIR }}/*_FUTURES.csv data/web/ data/hist/ 2>/dev/null || true
+          git add -A data/pdfs   # processed reports are removed once their data is in the CSVs
 
           if git diff --cached --quiet; then
             echo "No changes to commit"

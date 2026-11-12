@@ -90,24 +90,57 @@ def max_pain(g):
 
 
 def main_expiries(day, T):
-    """Main (non-serial) option months, nearest first, with at least 7 days to expiry."""
+    """Main (non-serial) option months, nearest first, with at least 15 days to expiry (implied vol of options
+    closer to expiry is not used)."""
     ex = day.groupby("expiry").agg(dte=("dte", "first"), oi=("open_interest", "sum")).reset_index()
-    ex = ex[(ex.expiry.str[:3].isin(MAIN[T])) & (ex.dte >= 7)].sort_values("dte")
+    ex = ex[(ex.expiry.str[:3].isin(MAIN[T])) & (ex.dte >= 15)].sort_values("dte")
     return list(ex.expiry)
 
 
 # ─────────────────────────── history helpers ───────────────────────────
 def yahoo(T):
-    """Front-month futures from the COT site's contract-labelled price file; returns are taken within one contract only."""
+    """Front-month futures: the contract-labelled daily price file, extended with this repo's own ICE settlements
+    (data/csv/<T>_FUTURES.csv) for days after its last date. Returns are taken within one contract only, and only
+    between consecutive business days (gaps between uploaded reports are not turned into one big return)."""
     try:
         raw = remote("cftc-cot-full/main/data/prices/front_contract.csv", "cftc-cot-full/data/prices/front_contract.csv")
         p = pd.read_csv(io.BytesIO(raw), parse_dates=["date"])
         p = p[p.ticker == T].set_index("date").sort_index()[["contract", "close", "high", "low"]].dropna()
+        f = CSV / f"{T}_FUTURES.csv"
+        if f.exists():
+            u = pd.read_csv(f, parse_dates=["date"])
+            u = u[u.settle.notna() & (u.settle > 0)]
+            u["code"] = T + u.contract.str[:3].map({k: c for k, c in zip(MONTHS, "FGHJKMNQUVXZ")}) + u.contract.str[3:]
+            last_p = p.index.max() if len(p) else pd.Timestamp("1900-01-01")
+            cur = p.contract.iloc[-1] if len(p) else None
+            add = []
+            for dt, g in u[u.date > last_p].groupby("date"):
+                # stay on the same contract as the price file until it rolls; then the most active one
+                row = g[g.code == cur] if cur is not None and (g.code == cur).any() and g.loc[g.code == cur, "open_interest"].fillna(0).max() >= 0.3 * g.open_interest.max() else g.loc[[g.open_interest.idxmax()]]
+                r = row.iloc[0]; cur = r.code
+                add.append({"date": dt, "contract": r.code, "close": float(r.settle),
+                            "high": float(r.high) if pd.notna(r.high) else float(r.settle), "low": float(r.low) if pd.notna(r.low) else float(r.settle)})
+            if add:
+                p = pd.concat([p, pd.DataFrame(add).set_index("date")]).sort_index()
         same = p.contract.eq(p.contract.shift(1))
-        p["lr"] = np.where(same, np.log(p.close / p.close.shift(1)), np.nan)
+        gap = pd.Series(p.index, index=p.index).diff().dt.days.fillna(1) <= 4
+        p["lr"] = np.where(same & gap, np.log(p.close / p.close.shift(1)), np.nan)
         return p
     except Exception as ex:
         print("price history unavailable:", ex); return None
+
+
+def bbg_hist(T):
+    """Front-month (1-month constant-maturity) ATM implied vol and 20-day realized vol from the Bloomberg history
+    (data/hist/<T>_vol_hist.csv, 2016 to Nov 2026); ICE settlements extend it from there."""
+    f = ROOT / "data" / "hist" / f"{T}_vol_hist.csv"
+    if not f.exists():
+        return None
+    h = pd.read_csv(f, parse_dates=["date"]).set_index("date").sort_index()
+    iv = h.atm_1m.dropna()
+    iv = iv[(iv > 3) & (iv < 150)]
+    iv.attrs["rv20"] = h.rv20.dropna()
+    return iv
 
 
 def bloomberg_iv_ct():
@@ -538,7 +571,7 @@ def main():
     idx = {}
     for T in ("CT", "KC", "SB", "CC"):
         try:
-            b = build(T, yahoo(T), ivct if T == "CT" else None)
+            b = build(T, yahoo(T), ivct if (T == "CT" and ivct is not None) else bbg_hist(T))
         except Exception as ex:
             import traceback; traceback.print_exc(); b = None
         if b:
