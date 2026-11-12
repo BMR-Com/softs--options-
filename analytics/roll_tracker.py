@@ -25,6 +25,10 @@ MONS = ["JAN", "FEB", "MAR", "APR", "MAY", "JUN", "JUL", "AUG", "SEP", "OCT", "N
 CODE = "FGHJKMNQUVXZ"
 CYCLE = {"CT": "HKNZ", "KC": "HKNUZ", "SB": "HKNV", "CC": "HKNUZ"}
 NOTICE = {"CT": 5, "KC": 7, "CC": 10, "SB": None}
+# delivery stopping rules that turn open interest into "how many stoppers": cotton >300 lots needs exchange permission
+# 5 business days before first notice; coffee 500 lots max per stopper
+STOP = {"CT": (300, "cotton: stopping more than 300 lots needs exchange permission 5 business days before first notice"),
+        "KC": (500, "coffee: at most 500 lots per stopper, so a big delivery needs several")}
 NAME = {"CT": "Cotton", "KC": "Coffee", "SB": "Sugar No. 11", "CC": "Cocoa"}
 UNIT = {"CT": "¢", "KC": "¢", "SB": "¢", "CC": "$"}
 LOTSIZE = {"CT": "50,000 lb", "KC": "37,500 lb", "SB": "112,000 lb", "CC": "10 t"}
@@ -82,6 +86,29 @@ def roll_window(y, m):
     py, pm = (y, m - 1) if m > 1 else (y - 1, 12)
     f = first_bday(py, pm)
     return shift(f, 4), shift(f, 9)          # 5th .. 10th business day of the month before delivery
+
+
+def opt_exp(sym, y, m):
+    """standard options on this future: cotton last Friday with at least 5 business days before FND; coffee and cocoa
+    second Friday of the month before delivery; sugar the 15th of the month before (previous business day if not)."""
+    py, pm = (y, m - 1) if m > 1 else (y - 1, 12)
+    if sym == "CT":
+        d = shift(t0(sym, y, m), -6)
+        while d.weekday() != 4:
+            d -= timedelta(days=1)
+        return d
+    if sym in ("KC", "CC"):
+        d, fr = date(py, pm, 1), 0
+        while True:
+            if d.weekday() == 4:
+                fr += 1
+                if fr == 2:
+                    return d
+            d += timedelta(days=1)
+    d = date(py, pm, 15)
+    while not isb(d):
+        d -= timedelta(days=1)
+    return d
 
 
 def pct_rank(v, lo, mid, hi):
@@ -155,19 +182,43 @@ def track(sym, B):
         i = band["k"].index(k)
         lo, mid, hi = band["p10"][i], band["p50"][i], band["p90"][i]
     pr = pct_rank(cur["rem"], lo, mid, hi)
+    llo = lmid = lhi = None
+    if band and k in band["k"] and band.get("lots_p50"):
+        i = band["k"].index(k)
+        llo, lmid, lhi = band["lots_p10"][i], band["lots_p50"][i], band["lots_p90"][i]
+    lots_pr = pct_rank(cur["oi"], llo, lmid, lhi)
     w0, w1 = roll_window(y, m)
     in_roll = [r for r in rows if w0 <= pd.Timestamp(r["date"]).date() <= shift(w1, 1)]   # report the day after holds the last roll day's OI
     rolled = -sum(r["doi"] or 0 for r in in_roll)
     k10 = [r for r in rows if r["k"] >= 10]
     spr10 = k10[-1]["spread"] if k10 else None
     lots_left = cur["oi"]
-    state = "heavy" if pr is not None and pr >= 85 else "light" if pr is not None and pr <= 15 else "normal"
+    heavy_pct = pr is not None and pr >= 85
+    heavy_lots = lots_pr is not None and lots_pr >= 90
+    state = "heavy" if (heavy_pct or heavy_lots) else "light" if pr is not None and pr <= 15 and (lots_pr is None or lots_pr <= 50) else "normal"
     # read
     u_ = UNIT[sym]
     sp = cur["spread"]
     lines = []
     lines.append(f"{NAME[sym]} {MONS[m - 1].title()} {str(y)[2:]}: {('first notice' if NOTICE[sym] else 'expiry')} {T0.isoformat()} ({k} business days after the latest report). "
-                 f"Open interest {lots_left:,} lots, {cur['rem']:.0f}% of its level {K0} business days before" + (f" (history for {MONS[m - 1].title()} at this stage: 10th–90th pct {lo:.0f}–{hi:.0f}%, median {mid:.0f}%)" if mid is not None else "") + ".")
+                 f"Open interest {lots_left:,} lots, {cur['rem']:.0f}% of its level {K0} business days before" + (f" (past {MONS[m - 1].title()} contracts at this stage: {lo:.0f}–{hi:.0f}%, median {mid:.0f}%" if mid is not None else "")
+                 + (f"; in lots since 2016: {llo:,.0f}–{lhi:,.0f}, median {lmid:,.0f})" if lmid is not None else (")" if mid is not None else "")) + ".")
+    ox = opt_exp(sym, y, m)
+    after_ox = [r for r in rows if pd.Timestamp(r["date"]).date() > ox]
+    after_re = [r for r in rows if pd.Timestamp(r["date"]).date() > shift(w1, 0) + timedelta(days=0) and pd.Timestamp(r["date"]).date() > w1]
+    lv = lambda key: band.get(key) if band else None
+    if after_re and lv("after_roll_lots"):
+        a = lv("after_roll_lots"); v = after_re[0]["oi"]
+        lines.append(f"After the index roll ({after_re[0]['date']} report): {v:,} lots still open vs {a['p10']:,.0f}–{a['p90']:,.0f} (median {a['p50']:,.0f}) for past {MONS[m - 1].title()} contracts.")
+    if after_ox and lv("after_opt_lots") and ox < T0:
+        a = lv("after_opt_lots"); v = after_ox[0]["oi"]
+        lines.append(f"After option expiry ({ox.isoformat()}): {v:,} lots vs a past median of {a['p50']:,.0f}.")
+    if lv("at_T0_lots"):
+        a = lv("at_T0_lots")
+        lines.append(f"Typical open interest left at {'first notice' if NOTICE[sym] else 'expiry'} for this month: {a['p50']:,.0f} lots (10th–90th pct {a['p10']:,.0f}–{a['p90']:,.0f}).")
+    if sym in STOP:
+        n_, txt_ = STOP[sym]
+        lines.append(f"In {n_}-lot stopping blocks the {lots_left:,} lots open now are {lots_left / n_:,.0f} blocks ({txt_}).")
     rec = [(c, v.get(str(k))) for c, v in B.get("recent", {}).items() if v.get(str(k)) is not None]
     if rec:
         lines.append("Last contracts at the same stage: " + ", ".join(f"{c[0]}{c[-2:]} {v:.0f}%" for c, v in rec[-5:]) + ".")
@@ -176,8 +227,12 @@ def track(sym, B):
     if sp is not None:
         fmt = (lambda v: f"{v:+,.0f} $/t") if sym == "CC" else (lambda v: f"{v:+.2f}¢")
         lines.append(f"Spread to {nxt[:3].title()} {nxt[3:]}: {fmt(sp)} ({'front over next: inverted' if sp > 0 else 'front under next: carry'})" + (f", {fmt(sp - spr10)} since 10 days before {'notice' if NOTICE[sym] else 'expiry'}" if spr10 is not None and k < 10 else "") + ".")
-    if state == "heavy":
-        lines.append("More open interest than usual is still in the front month this close to notice: a larger delivery is likely. History: when this much lingers, the front has more often weakened against the next month into notice than squeezed (longs end up rolling or selling); squeezes like cotton's 2011 needed short deliverable stocks as well.")
+    if state == "heavy" and heavy_lots and not heavy_pct:
+        lines.append(f"The share of open interest that has left is normal, but the absolute size is not: {lots_left:,} lots is above the 90th percentile of past {MONS[m - 1].title()} contracts at this stage, because the contract started the roll unusually big. More lots have to be rolled, closed or delivered than usual. "
+                     "History: big remaining size predicts a bigger delivery; on its own it has not predicted the spread. Squeezes came when size stayed big after the index roll and deliverable stock was short or costly to take (cotton July 2011 held into notice; July 2012 ran from +2.7 to +13.6¢ over the next contract during and just after the index roll and option expiry, then collapsed to flat by notice; July 2022 the same).")
+        idea = {"lean": "watch", "text": f"Watch the reports after the index roll: if {MONS[m - 1].title()} still holds far more lots than usual and the spread to {nxt[:3].title()} firms, a pre-notice squeeze (and its collapse into notice) is possible; check deliverable stock. No position until then."}
+    elif state == "heavy":
+        lines.append("More open interest than usual is still in the front month this close to notice: a larger delivery is likely. History: when this much lingers, the front has more often weakened against the next month into notice than squeezed (longs end up rolling or selling). Squeezes do happen when deliverable stock is short or costly to take: cotton July 2011 held into notice; July 2012 and July 2022 ran up after the index roll and peaked 1–4 days before notice, then collapsed.")
         idea = {"lean": "bear spread", "text": f"Lean to sell {MONS[m - 1].title()}/buy {nxt[:3].title()} into notice unless deliverable stocks are tight; size small and exit by first notice."}
     elif state == "light":
         lines.append("Open interest has left the front faster than usual: deliveries are likely small and shorts have little to deliver against; the front spread has more often held or firmed.")
@@ -187,7 +242,7 @@ def track(sym, B):
         idea = {"lean": "none", "text": "No spread idea from the roll."}
     return {"sym": sym, "name": NAME[sym], "contract": con, "label": f"{MONS[m - 1].title()} {str(y)[2:]}", "next": nxt, "T0": T0.isoformat(),
             "T0_kind": "first notice" if NOTICE[sym] else "expiry", "k": k, "K0": K0, "oi": lots_left, "rem": cur["rem"], "band": {"lo": lo, "mid": mid, "hi": hi},
-            "pct": None if pr is None else round(pr), "state": state, "base": base, "base_src": base_src, "roll_window": [w0.isoformat(), w1.isoformat()],
+            "pct": None if pr is None else round(pr), "lots_band": {"lo": llo, "mid": lmid, "hi": lhi}, "lots_pct": None if lots_pr is None else round(lots_pr), "opt_expiry": opt_exp(sym, y, m).isoformat(), "state": state, "base": base, "base_src": base_src, "roll_window": [w0.isoformat(), w1.isoformat()],
             "rolled_in_window": rolled, "spread": sp, "spread_k10": spr10, "share": cur["share"], "path": rows, "band_path": band,
             "read": " ".join(lines), "idea": idea, "lot": LOTSIZE[sym], "asof": cur["date"]}
 
