@@ -32,7 +32,7 @@ def dates(path):
 
 def main():
     try:
-        files = json.loads(get(SRC + "data/ice_staging/manifest.json"))["files"]
+        files = json.loads(get(SRC + "data/ice_staging/manifest.json"))["files"]   # raw files are cached up to 5 minutes
     except Exception as e:
         print(f"no drop-box manifest ({e}); nothing to collect")
         files = []
