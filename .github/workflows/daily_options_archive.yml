@@ -4,6 +4,8 @@ on:
   schedule:
     # Run at 4:00 PM EST (after market close)
     - cron: '0 21 * * 1-5'  # 21:00 UTC = 4:00 PM EST/EDT
+    # Every 2 hours on weekdays: collect reports uploaded through the softs desk drop box (does nothing if none are new)
+    - cron: '25 */2 * * 1-5'
   workflow_dispatch:
     inputs:
       ticker:
@@ -23,6 +25,10 @@ on:
         required: true
         default: '7'
 
+concurrency:
+  group: options-archive
+  cancel-in-progress: false
+
 env:
   PDF_DIR: ./data/pdfs
   CSV_DIR: ./data/csv
@@ -34,12 +40,25 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v4
 
+      - name: Collect reports uploaded through the softs desk drop box
+        id: staged
+        run: |
+          python3 analytics/fetch_staged.py
+          N=$(grep -o '^new=[0-9]*' "$GITHUB_OUTPUT" | tail -1 | cut -d= -f2)
+          if [ "${{ github.event_name }}" != "schedule" ] || [ "${{ github.event.schedule }}" = "0 21 * * 1-5" ] || [ "${N:-0}" != "0" ]; then
+            echo "go=1" >> "$GITHUB_OUTPUT"
+          else
+            echo "go=0" >> "$GITHUB_OUTPUT"; echo "Nothing new from the drop box; the rest of this run is skipped."
+          fi
+
       - name: Set up Python
+        if: steps.staged.outputs.go == '1'
         uses: actions/setup-python@v5
         with:
           python-version: '3.11'
 
       - name: Install dependencies
+        if: steps.staged.outputs.go == '1'
         run: |
           pip install --upgrade pip setuptools wheel
           sudo apt-get install -y -qq poppler-utils >/dev/null   # pdftotext: fast text extraction
@@ -48,6 +67,7 @@ jobs:
           done
 
       - name: Download new PDFs (if date specified)
+        if: steps.staged.outputs.go == '1'
         run: |
           mkdir -p ${{ env.PDF_DIR }}
           INPUT_DATE="${{ github.event.inputs.date }}"
@@ -68,9 +88,11 @@ jobs:
           ls -la ${{ env.PDF_DIR }}/
 
       - name: Archive futures settlements and open interest (before PDF cleanup)
+        if: steps.staged.outputs.go == '1'
         run: python analytics/parse_futures.py
 
       - name: Run archiver (process ALL existing PDFs)
+        if: steps.staged.outputs.go == '1'
         run: |
           # Handle empty inputs properly (GitHub may pass "" literally)
           RAW_TICKER='${{ github.event.inputs.ticker }}'
@@ -107,14 +129,17 @@ jobs:
           fi
 
       - name: Build vol desk
+        if: steps.staged.outputs.go == '1'
         continue-on-error: true
         run: python analytics/build_desk.py
 
       - name: Roll and delivery tracker
+        if: steps.staged.outputs.go == '1'
         continue-on-error: true
         run: python analytics/roll_tracker.py
 
       - name: Commit and push CSV archive
+        if: steps.staged.outputs.go == '1'
         run: |
           git config --local user.email "action@github.com"
           git config --local user.name "GitHub Action"
@@ -126,5 +151,6 @@ jobs:
             echo "No changes to commit"
           else
             git commit -m "Update options master CSVs: $(date +%Y-%m-%d)"
-            git push
+            for i in 1 2 3 4 5; do git pull -q --rebase origin main && git push && ok=1 && break; git rebase --abort 2>/dev/null || true; sleep 8; done
+            [ -n "$ok" ] || { echo "::error::push failed"; exit 1; }
           fi
