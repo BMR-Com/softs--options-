@@ -176,9 +176,22 @@ def build(T, px, ivhist):
     fu = pd.read_csv(CSV / f"{T}_FUTURES.csv", parse_dates=["date"]) if (CSV / f"{T}_FUTURES.csv").exists() else None
     m = m[m.strike.notna()]
     # drop incomplete reports (e.g. the short "traded strikes only" DMR): far fewer rows / OI than the days around them
+    # Compared with the last complete day on the expiries both days list, so an option expiry (which removes a whole
+    # month's strikes and open interest) does not make the next reports look incomplete.
     daily = m.groupby("date").agg(rows=("strike", "size"), oi=("open_interest", "sum")).sort_index()
-    ref = daily.rolling(5, min_periods=1).median().shift(1)
-    ok = daily[(daily.rows >= 0.6 * ref.rows.fillna(daily.rows)) & (daily.oi >= 0.6 * ref.oi.fillna(daily.oi))].index
+    by = {d: g for d, g in m.groupby("date")}
+    ok, last = [], None
+    for d in daily.index:
+        g = by[d]
+        if last is None:
+            ok.append(d); last = g; continue
+        live = g.groupby("expiry").open_interest.sum()
+        common = set(live[live > 0].index) & set(last.expiry)     # an expiring month shows zero open interest on its last day
+        r_now, r_ref = (g.expiry.isin(common)).sum(), (last.expiry.isin(common)).sum()
+        o_now, o_ref = g[g.expiry.isin(common)].open_interest.sum(), last[last.expiry.isin(common)].open_interest.sum()
+        if common and r_now >= 0.6 * r_ref and o_now >= 0.6 * o_ref:
+            ok.append(d); last = g
+    ok = pd.Index(ok)
     skipped = [d.strftime("%Y-%m-%d") for d in daily.index if d not in ok]
     m = m[m.date.isin(ok)]
     # use only the most recent week of reports (older archive stretches are not comparable)

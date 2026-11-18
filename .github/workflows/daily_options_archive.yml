@@ -130,11 +130,13 @@ jobs:
 
       - name: Build vol desk
         if: steps.staged.outputs.go == '1'
+        id: voldesk
         continue-on-error: true
         run: python analytics/build_desk.py
 
       - name: Roll and delivery tracker
         if: steps.staged.outputs.go == '1'
+        id: roll
         continue-on-error: true
         run: python analytics/roll_tracker.py
 
@@ -154,3 +156,7 @@ jobs:
             for i in 1 2 3 4 5; do git pull -q --rebase origin main && git push && ok=1 && break; git rebase --abort 2>/dev/null || true; sleep 8; done
             [ -n "$ok" ] || { echo "::error::push failed"; exit 1; }
           fi
+
+      - name: fail the run if the vol desk or roll tracker failed (their output is still committed above)
+        if: always() && (steps.voldesk.outcome == 'failure' || steps.roll.outcome == 'failure')
+        run: echo "::error::vol desk or roll tracker failed (see the steps above)"; exit 1
