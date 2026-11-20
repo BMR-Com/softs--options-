@@ -2,10 +2,9 @@ name: Daily Options CSV Archive
 
 on:
   schedule:
-    # Run at 4:00 PM EST (after market close)
-    - cron: '0 21 * * 1-5'  # 21:00 UTC = 4:00 PM EST/EDT
-    # Every 2 hours on weekdays: collect reports uploaded through the softs desk drop box (does nothing if none are new)
-    - cron: '25 */2 * * 1-5'
+    # Once a day, every day (~21:23 CT): collect the ICE reports Ma uploaded through the softs desk drop box that day
+    # (does nothing if none are new). Run it by hand from the Actions tab for an immediate update.
+    - cron: '23 3 * * *'
   workflow_dispatch:
     inputs:
       ticker:
